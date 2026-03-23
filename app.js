@@ -11,10 +11,16 @@ const mapMeta = {
   Erangel_Main: { name: "Erangel", img: "https://static.wikia.nocookie.net/battlegrounds/images/e/e4/Erangel_Map.jpg" },
   Desert_Main: { name: "Miramar", img: "https://static.wikia.nocookie.net/battlegrounds/images/f/f5/Miramar_Map.jpg" },
   Savage_Main: { name: "Sanhok", img: "https://static.wikia.nocookie.net/battlegrounds/images/4/4f/Sanhok_Map.jpg" },
+  Sanhok: { name: "Sanhok", img: "https://static.wikia.nocookie.net/battlegrounds/images/4/4f/Sanhok_Map.jpg" },
   Baltic_Main: { name: "Vikendi", img: "https://static.wikia.nocookie.net/battlegrounds/images/5/58/Vikendi_Map.jpg" },
+  Dihorotok_Main: { name: "Vikendi", img: "https://static.wikia.nocookie.net/battlegrounds/images/b/b3/Vikendi_Map.jpg" },
+  Vikendi: { name: "Vikendi", img: "https://static.wikia.nocookie.net/battlegrounds/images/5/58/Vikendi_Map.jpg" },
   Tiger_Main: { name: "Taego", img: "https://static.wikia.nocookie.net/battlegrounds/images/5/5d/Taego_Map.jpg" },
+  Taego: { name: "Taego", img: "https://static.wikia.nocookie.net/battlegrounds/images/5/5d/Taego_Map.jpg" },
   Kiki_Main: { name: "Deston", img: "https://static.wikia.nocookie.net/battlegrounds/images/b/b3/Deston_Map.jpg" },
-  Chimera_Main: { name: "Paramo", img: "https://static.wikia.nocookie.net/battlegrounds/images/a/a2/Paramo_Map.jpg" }
+  Neon_Main: { name: "Rondo", img: "https://static.wikia.nocookie.net/battlegrounds/images/5/54/Rondo_Map.jpg" },
+  Chimera_Main: { name: "Paramo", img: "https://static.wikia.nocookie.net/battlegrounds/images/a/a2/Paramo_Map.jpg" },
+  Summerland_Main: { name: "Karakin", img: "https://static.wikia.nocookie.net/battlegrounds/images/e/e0/Karakin_Map.jpg" }
 };
 
 let chartInstance = null;
@@ -108,9 +114,10 @@ async function loadMatchHistoryWithFilter(matches, playerId, officialName) {
         // --- FIX: CALCULO DE VITÓRIAS ---
         const participant = m.included?.find(inc => 
             inc.type === "participant" && 
-            inc.relationships?.player?.data?.id === playerId
+            (inc.relationships?.player?.data?.id === playerId || 
+             inc.attributes?.stats?.name === officialName)
         );
-        if (participant && participant.attributes.stats.winPlace === 1) {
+        if (participant && (participant.attributes?.stats?.winPlace === 1 || participant.attributes?.stats?.winPlace === "1")) {
             totalWins++;
         }
 
@@ -121,14 +128,21 @@ async function loadMatchHistoryWithFilter(matches, playerId, officialName) {
             
             let matchKills = 0;
             logs.forEach(e => {
-                // Count Kills & Headshots (Using official name to avoid casing issues)
-                if (e._T === "LogPlayerKillV2" && e.killer?.name === officialName) {
-                    const weapon = e.weapon?.itemId;
+                // Count Kills & Headshots (Using lowercase to avoid casing issues)
+                if (e._T === "LogPlayerKillV2" && e.killer?.name?.toLowerCase() === officialName.toLowerCase()) {
+                    const kDI = e.killerDamageInfo;
+                    // FIX: Weapon mapping for LogPlayerKillV2 (nested in killerDamageInfo)
+                    const weapon = kDI?.damageCauserName || e.damageCauserName || e.weapon?.itemId;
                     if (weapon) {
                         weapons[weapon] = (weapons[weapon] || 0) + 1;
                     }
-                    // FIX: Headshot check (Reason can be HeadShot or headshot)
-                    if (e.damageReason?.toLowerCase().includes("headshot")) {
+                    
+                    // FIX: Robust Headshot check (nested in killerDamageInfo)
+                    const isHeadshot = (kDI?.damageReason?.toLowerCase().includes("headshot")) || 
+                                     (e.damageReason?.toLowerCase().includes("headshot")) ||
+                                     (kDI?.additionalInfo?.some(info => info.toLowerCase().includes("headshot")));
+                    
+                    if (isHeadshot) {
                         headshots++;
                     }
                     matchKills++;
@@ -136,12 +150,12 @@ async function loadMatchHistoryWithFilter(matches, playerId, officialName) {
                 }
 
                 // Count Damage Dealt by Player
-                if (e._T === "LogPlayerTakeDamage" && e.attacker?.name === officialName) {
+                if (e._T === "LogPlayerTakeDamage" && e.attacker?.name?.toLowerCase() === officialName.toLowerCase()) {
                     totalDamage += e.damage;
                 }
 
                 // Check if Player died in this match
-                if (e._T === "LogPlayerKillV2" && e.victim?.name === officialName) {
+                if (e._T === "LogPlayerKillV2" && e.victim?.name?.toLowerCase() === officialName.toLowerCase()) {
                     totalDeaths++;
                 }
             });
@@ -180,15 +194,19 @@ function renderWeapons(data) {
         return;
     }
 
-    container.innerHTML = sorted.map(([id, count]) => `
+    container.innerHTML = sorted.map(([id, count]) => {
+        const cleanName = id.replace('Item_Weapon_', '').replace('Weap', '').replace('_C', '').replace('BP_', '');
+        const imgUrl = `https://raw.githubusercontent.com/pubg/api-assets/master/Assets/Icons/Weapons/Item_Weapon_${cleanName}_C.png`;
+        
+        return `
         <div class="weapon-card">
-            <img src="https://pubglist.com/images/weapons/${id}.png" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3222/3222718.png'">
+            <img src="${imgUrl}" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3222/3222718.png'">
             <div class="weapon-info">
-                <span class="name">${id.replace('Item_Weapon_', '')}</span>
+                <span class="name">${cleanName}</span>
                 <span class="count">${count} Abates</span>
             </div>
         </div>
-    `).join('');
+    `}).join('');
 }
 
 function renderMaps(data) {
