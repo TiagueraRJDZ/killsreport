@@ -133,20 +133,42 @@ async function loadPlayerData(nickname) {
     resetStats();
 
     try {
-        const pResponse = await fetch(`${BASE_URL}${SHARD}/players?filter[playerNames]=${nickname}`, {
+        // Fetch ALL friends + searched player in one go for efficiency and fairness
+        const searchNames = Array.from(new Set([...FRIENDS, nickname])).join(',');
+        const pResponse = await fetch(`${BASE_URL}${SHARD}/players?filter[playerNames]=${searchNames}`, {
             headers: { Authorization: API_KEY, Accept: "application/vnd.api+json" }
         });
         
-        if (!pResponse.ok) throw new Error("Jogador não encontrado ou erro na API.");
+        if (!pResponse.ok) throw new Error("Erro na API ao buscar jogadores.");
         
         const pData = await pResponse.json();
-        const player = pData.data[0];
-        const playerId = player.id;
-        const officialName = player.attributes.name;
-        const matches = player.relationships.matches.data;
+        const allPlayers = pData.data || [];
+        
+        // Find searched player
+        const mainPlayer = allPlayers.find(p => p.attributes.name.toLowerCase() === nickname.toLowerCase());
+        if (!mainPlayer) throw new Error("Jogador '" + nickname + "' não encontrado.");
+        
+        const playerId = mainPlayer.id;
+        const officialName = mainPlayer.attributes.name;
 
-        // Process Match History and Manual Daily Stats
-        await loadMatchHistoryWithFilter(matches.slice(0, 40), playerId, officialName); 
+        // --- AGGREGATE UNIQUE MATCHES FOR HALL OF FAME & DAILY ---
+        const allMatchIds = new Set();
+        
+        // Add last 20 matches from EVERY friend to the fetch list
+        allPlayers.forEach(p => {
+            const mData = p.relationships?.matches?.data || [];
+            mData.slice(0, 20).forEach(m => allMatchIds.add(m.id));
+        });
+
+        // Ensure we have at least the last 40 for the searched player for their history
+        const mainMatches = mainPlayer.relationships?.matches?.data || [];
+        mainMatches.slice(0, 40).forEach(m => allMatchIds.add(m.id));
+
+        // Limit total matches to avoid excessive load (max 60 unique most recent)
+        const uniqueMatchIds = Array.from(allMatchIds).slice(0, 60);
+
+        // Process everything
+        await loadMatchHistoryWithFilter(uniqueMatchIds, playerId, officialName); 
 
     } catch (err) {
         console.error(err);
@@ -156,11 +178,12 @@ async function loadPlayerData(nickname) {
     }
 }
 
-async function loadMatchHistoryWithFilter(matches, playerId, officialName) {
+async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
     const selectedDate = document.getElementById("dateFilter").value;
     const statsLabel = document.getElementById("statsTypeLabel");
     const loadingStatus = document.getElementById("loadingStatus");
     
+    // Update labels immediately
     statsLabel.innerText = `(${selectedDate.split('-').reverse().slice(0,2).join('/')})`;
     loadingStatus.style.display = "block";
 
@@ -176,17 +199,16 @@ async function loadMatchHistoryWithFilter(matches, playerId, officialName) {
     const maps = {};
     const kdHistory = [];
 
-    // 1. Fetch match details in parallel to filter by date
-    // FIX: Graceful error handling for CORS or broken matches
-    const matchPromises = matches.map(async (m) => {
+    // FIX: Fetch match details for each ID
+    const matchPromises = matchIds.map(async (id) => {
         try {
-            const res = await fetch(`${BASE_URL}${SHARD}/matches/${m.id}`, {
+            const res = await fetch(`${BASE_URL}${SHARD}/matches/${id}`, {
                 headers: { Authorization: API_KEY, Accept: "application/vnd.api+json" }
             });
             if (!res.ok) return null;
             return await res.json();
         } catch (e) {
-            console.warn(`Erro ao carregar partida ${m.id}:`, e);
+            console.warn(`Erro ao carregar partida ${id}:`, e);
             return null;
         }
     });
@@ -194,9 +216,11 @@ async function loadMatchHistoryWithFilter(matches, playerId, officialName) {
     const matchDetailsRaw = await Promise.all(matchPromises);
     const matchDetails = matchDetailsRaw.filter(m => m !== null);
 
+    // Daily Stats Accumulators (for searched player on selected date)
+
     const teamHistory = [];
     const hallOfFameAggr = {}; // { player: { kills: 0, damage: 0, ... } }
-    let sharedMatchesFound = 0;
+    let globalMatchesProcessed = 0;
 
     // 2. Process each match
     for (const m of matchDetails) {
@@ -209,22 +233,42 @@ async function loadMatchHistoryWithFilter(matches, playerId, officialName) {
             inc.type === "participant" && FRIENDS.includes(inc.attributes?.stats?.name)
         );
 
-        // --- HALL OF FAME LOGIC (Last 20 shared matches) ---
-        if (friendsInMatch && friendsInMatch.length > 1 && sharedMatchesFound < 20) {
-            sharedMatchesFound++;
+        // --- HALL OF FAME LOGIC (Accumulate stats for all 5 friends) ---
+        if (friendsInMatch && friendsInMatch.length > 0) {
             friendsInMatch.forEach(p => {
                 const name = p.attributes.stats.name;
                 if (!hallOfFameAggr[name]) hallOfFameAggr[name] = { kills: 0, damage: 0, assists: 0, neymar: 0, time: 0, matches: 0 };
-                hallOfFameAggr[name].kills += p.attributes.stats.kills;
-                hallOfFameAggr[name].damage += Math.round(p.attributes.stats.damageDealt);
-                hallOfFameAggr[name].assists += p.attributes.stats.assists;
-                hallOfFameAggr[name].neymar += p.attributes.stats.DBNOs;
-                hallOfFameAggr[name].time += Math.floor(p.attributes.stats.timeSurvived);
-                hallOfFameAggr[name].matches++;
+                // Only count the last 20 matches PER PLAYER
+                if (hallOfFameAggr[name].matches < 20) {
+                    hallOfFameAggr[name].kills += p.attributes.stats.kills;
+                    hallOfFameAggr[name].damage += Math.round(p.attributes.stats.damageDealt);
+                    hallOfFameAggr[name].assists += p.attributes.stats.assists;
+                    hallOfFameAggr[name].neymar += p.attributes.stats.DBNOs;
+                    hallOfFameAggr[name].time += Math.floor(p.attributes.stats.timeSurvived);
+                    hallOfFameAggr[name].matches++;
+                }
             });
         }
 
-        // Filter by date for main UI
+        // --- TEAM COMPETITION LOGIC (Shared matches only, for the selected date) ---
+        if (createdAt === selectedDate && friendsInMatch.length > 1) {
+            const teamStats = friendsInMatch.map(p => ({
+                name: p.attributes.stats.name,
+                kills: p.attributes.stats.kills,
+                damage: Math.round(p.attributes.stats.damageDealt),
+                assists: p.attributes.stats.assists,
+                neymar: p.attributes.stats.DBNOs,
+                time: Math.floor(p.attributes.stats.timeSurvived)
+            }));
+            teamHistory.push({
+                matchId: matchData.id,
+                fullDate: matchData.attributes.createdAt,
+                mode: matchData.attributes.gameMode,
+                stats: teamStats
+            });
+        }
+
+        // Filter by date for main global stats
         if (createdAt !== selectedDate) continue;
         
         matchCount++;
