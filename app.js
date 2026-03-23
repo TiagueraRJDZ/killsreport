@@ -106,6 +106,8 @@ const ID_NAMES = {
   "WeapWinchester_C": "S1897"
 };
 
+const FRIENDS = ["TIAGUERArjdz", "Alis00n", "M4LW4RE-", "LillWhind", "DeLLano_"];
+
 let chartInstance = null;
 
 // Initialization
@@ -159,7 +161,7 @@ async function loadMatchHistoryWithFilter(matches, playerId, officialName) {
     const statsLabel = document.getElementById("statsTypeLabel");
     const loadingStatus = document.getElementById("loadingStatus");
     
-    statsLabel.innerText = `(${selectedDate.split('-').reverse().slice(0,2).reverse().join('/')})`;
+    statsLabel.innerText = `(${selectedDate.split('-').reverse().slice(0,2).join('/')})`;
     loadingStatus.style.display = "block";
 
     // Daily Stats Accumulators
@@ -191,6 +193,8 @@ async function loadMatchHistoryWithFilter(matches, playerId, officialName) {
 
     const matchDetailsRaw = await Promise.all(matchPromises);
     const matchDetails = matchDetailsRaw.filter(m => m !== null);
+
+    const teamHistory = [];
 
     // 2. Process each match
     for (const m of matchDetails) {
@@ -254,10 +258,34 @@ async function loadMatchHistoryWithFilter(matches, playerId, officialName) {
                 }
             });
             kdHistory.push(matchKills);
+
+            // --- COMPREHENSIVE TEAM COMPETITION LOGIC ---
+            const friendsInMatch = m.included?.filter(inc => 
+                inc.type === "participant" && 
+                FRIENDS.some(f => inc.attributes?.stats?.name?.toLowerCase() === f.toLowerCase())
+            );
+
+            if (friendsInMatch && friendsInMatch.length > 1) {
+                const teamStats = friendsInMatch.map(p => ({
+                    name: p.attributes.stats.name,
+                    kills: p.attributes.stats.kills,
+                    damage: Math.round(p.attributes.stats.damageDealt),
+                    assists: p.attributes.stats.assists,
+                    neymar: p.attributes.stats.DBNOs,
+                    time: Math.floor(p.attributes.stats.timeSurvived)
+                }));
+                teamHistory.push({
+                    matchId: matchData.id,
+                    fullDate: matchData.attributes.createdAt,
+                    mode: matchData.attributes.gameMode,
+                    stats: teamStats
+                });
+            }
         }
     }
 
     loadingStatus.style.display = "none";
+    renderTeamStats(teamHistory);
 
     // 3. Final Calculation
     const kd = totalDeaths ? (totalKills / totalDeaths).toFixed(2) : totalKills;
@@ -394,4 +422,109 @@ function resetStats() {
     ['killsVal', 'kdVal', 'winsVal', 'matchesVal', 'damageVal', 'hsVal'].forEach(id => updateText(id, "-"));
     document.getElementById("weaponsGrid").innerHTML = "";
     document.getElementById("mapsGrid").innerHTML = "";
+    document.getElementById("teamStatsSection").style.display = "none";
+}
+
+function renderTeamStats(history) {
+    const section = document.getElementById("teamStatsSection");
+    const container = document.getElementById("teamStatsContainer");
+    
+    if (history.length === 0) {
+        section.style.display = "none";
+        return;
+    }
+
+    section.style.display = "block";
+    container.innerHTML = history.map(match => {
+        // Localization and Time logic
+        const mDate = new Date(match.fullDate);
+        const dayMonth = mDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+        const timeStr = mDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        
+        // Relative time
+        const diffMs = new Date() - mDate;
+        const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+        const relativeTime = diffHours < 1 ? 'Agora pouco' : `${diffHours}h atrás`;
+
+        // Game Mode Logic (Icons & Colors)
+        const isFPP = (match.mode || "").includes('fpp');
+        const modeBase = (match.mode || "").replace('-fpp', '').replace('-tpp', '').toLowerCase();
+        
+        let modeIcon = '👤👤👤👤';
+        let modeBg = '#5d5dbd'; // Squad Purple
+        
+        if (modeBase === 'duo') {
+            modeIcon = '👤👤';
+            modeBg = '#45a29e'; // Duo Teal
+        } else if (modeBase === 'solo') {
+            modeIcon = '👤';
+            modeBg = '#7f8c8d'; // Solo Grey
+        }
+
+        // Calculate Totals
+        const totalKills = match.stats.reduce((s, p) => s + p.kills, 0);
+        const totalDamage = match.stats.reduce((s, p) => s + p.damage, 0);
+        const totalAssists = match.stats.reduce((s, p) => s + p.assists, 0);
+        const totalNeymar = match.stats.reduce((s, p) => s + p.neymar, 0);
+
+        const rows = match.stats.sort((a,b) => b.kills - a.kills || b.damage - a.damage).map(p => {
+            const timeMin = Math.floor(p.time / 60);
+            const timeSec = p.time % 60;
+            const scoreNum = (p.kills * 2 + p.assists + p.neymar/2 + p.damage/100);
+            let scoreClass = 'score-b';
+            let scoreLetter = 'B';
+            if (scoreNum > 15) { scoreClass = 'score-s'; scoreLetter = 'S'; }
+            else if (scoreNum > 8) { scoreClass = 'score-a'; scoreLetter = 'A'; }
+
+            return `
+                <tr>
+                    <td class="player-name">${p.name}</td>
+                    <td class="highlight-stat">${p.kills}</td>
+                    <td><span class="damage-bar ${p.damage > 500 ? 'damage-red' : 'damage-grey'}" style="width: ${Math.min(p.damage/10, 100)}px"></span>${p.damage}</td>
+                    <td class="${p.assists >= 3 ? 'highlight-stat' : ''}">${p.assists}</td>
+                    <td>${p.neymar}</td>
+                    <td>${timeMin}:${timeSec.toString().padStart(2, '0')}</td>
+                    <td class="${scoreClass}">${scoreLetter}</td>
+                </tr>
+            `;
+        }).join('');
+
+        return `
+            <div class="team-summary-header">
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <div style="background: ${modeBg}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 800; display: flex; align-items: center; gap: 4px;">
+                        <span style="font-size: 10px; opacity: 0.9;">${modeIcon}</span>
+                        <span style="border-left: 1px solid rgba(255,255,255,0.2); padding-left: 4px;">${isFPP ? 'FPP' : 'TPP'}</span>
+                    </div>
+                    <div style="color: #999; font-size: 12px; border-left: 1px solid #444; padding-left: 10px;">${relativeTime}</div>
+                    <div style="font-weight: 700; color: #fff;">Partida em ${dayMonth}</div>
+                    <div style="color: #999; font-size: 12px;">${timeStr}</div>
+                </div>
+            </div>
+            <table class="team-table">
+                <thead>
+                    <tr>
+                        <th>Jogador</th>
+                        <th>Kills</th>
+                        <th>Dano</th>
+                        <th>Assist.</th>
+                        <th>Neymar</th>
+                        <th>Tempo</th>
+                        <th>Score</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rows}
+                    <tr style="background: rgba(255,255,255,0.05); font-weight: 700;">
+                        <td>Total</td>
+                        <td>${totalKills}</td>
+                        <td>${totalDamage}</td>
+                        <td>${totalAssists}</td>
+                        <td>${totalNeymar}</td>
+                        <td colspan="2"></td>
+                    </tr>
+                </tbody>
+            </table>
+        `;
+    }).join('<div style="margin-bottom: 30px;"></div>');
 }

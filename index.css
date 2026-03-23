@@ -313,3 +313,79 @@ body {
     width: 100%;
   }
 }
+
+/* Team Stats Competição */
+.team-table-container {
+  overflow-x: auto;
+  margin-top: 15px;
+}
+
+.team-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  text-align: left;
+}
+
+.team-table th {
+  padding: 12px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  font-size: 11px;
+  font-weight: 700;
+  border-bottom: 2px solid var(--glass-border);
+}
+
+.team-table td {
+  padding: 15px 12px;
+  border-bottom: 1px solid var(--glass-border);
+  vertical-align: middle;
+}
+
+.team-table tr:hover {
+  background: rgba(255,255,255,0.02);
+}
+
+.team-table .player-name {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.team-table .highlight-stat {
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.team-table .damage-bar {
+  display: inline-block;
+  height: 20px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 3px;
+  margin-right: 10px;
+  vertical-align: middle;
+  min-width: 40px;
+}
+
+.team-table .damage-red { background: #c0392b; }
+.team-table .damage-grey { background: #7f8c8d; }
+
+.team-table .score-s { color: #f1c40f; font-weight: 800; }
+.team-table .score-a { color: #e67e22; font-weight: 700; }
+.team-table .score-b { color: var(--text-secondary); }
+
+.team-summary-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 15px;
+  background: rgba(255,255,255,0.02);
+  border-radius: 12px 12px 0 0;
+  border: 1px solid var(--glass-border);
+  margin-top: 30px;
+}
+
+.team-summary-header .match-id {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-family: monospace;
+}
