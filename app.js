@@ -450,15 +450,20 @@ function renderTeamStats(history) {
         const isFPP = (match.mode || "").includes('fpp');
         const modeBase = (match.mode || "").replace('-fpp', '').replace('-tpp', '').toLowerCase();
         
-        let modeIcon = '👤👤👤👤';
+        const svgIcon = `<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="6" r="4"/><path d="M20 17.5c0-2.485-3.582-4.5-8-4.5s-8 2.015-8 4.5V21h16v-3.5z"/></svg>`;
+        
+        let modeIconHtml = '';
         let modeBg = '#5d5dbd'; // Squad Purple
         
         if (modeBase === 'duo') {
-            modeIcon = '👤👤';
-            modeBg = '#45a29e'; // Duo Teal
+            modeIconHtml = `<div style="display:flex; gap: -2px;">${svgIcon}${svgIcon}</div>`;
+            modeBg = '#459ba2'; // Adjusted Duo Teal
         } else if (modeBase === 'solo') {
-            modeIcon = '👤';
+            modeIconHtml = svgIcon;
             modeBg = '#7f8c8d'; // Solo Grey
+        } else {
+            modeIconHtml = `<div style="display:flex; gap: -4px;">${svgIcon}${svgIcon}${svgIcon}${svgIcon}</div>`;
+            modeBg = '#5d5dbd'; // Squad Purple
         }
 
         // Calculate Totals
@@ -493,7 +498,7 @@ function renderTeamStats(history) {
             <div class="team-summary-header">
                 <div style="display: flex; align-items: center; gap: 15px;">
                     <div style="background: ${modeBg}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 800; display: flex; align-items: center; gap: 4px;">
-                        <span style="font-size: 10px; opacity: 0.9;">${modeIcon}</span>
+                        <span style="font-size: 10px; opacity: 0.9;">${modeIconHtml}</span>
                         <span style="border-left: 1px solid rgba(255,255,255,0.2); padding-left: 4px;">${isFPP ? 'FPP' : 'TPP'}</span>
                     </div>
                     <div style="color: #999; font-size: 12px; border-left: 1px solid #444; padding-left: 10px;">${relativeTime}</div>
