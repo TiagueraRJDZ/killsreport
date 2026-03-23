@@ -1,0 +1,315 @@
+/* 
+ * PUBG Tracker PRO - Professional Dashboard CSS 
+ * Design System - Obsidian & Gold 
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap');
+
+:root {
+  --primary: #f7b500;
+  --primary-glow: rgba(247, 181, 0, 0.4);
+  --bg-darker: #060606;
+  --bg-dark: #0c0c0c;
+  --card-bg: rgba(22, 22, 22, 0.85);
+  --glass-border: rgba(255, 255, 255, 0.05);
+  --glass-highlight: rgba(255, 255, 255, 0.02);
+  --text-primary: #ffffff;
+  --text-secondary: #999999;
+  --success: #27ae60;
+  --danger: #eb5757;
+  --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  background-color: var(--bg-darker);
+  background-image: 
+    radial-gradient(circle at 50% 0%, rgba(247, 181, 0, 0.05) 0%, transparent 60%),
+    radial-gradient(circle at 10% 20%, rgba(247, 181, 0, 0.02) 0%, transparent 40%);
+  color: var(--text-primary);
+  font-family: 'Outfit', sans-serif;
+  margin: 0;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 20px;
+}
+
+/* Header & Search Area */
+.header {
+  text-align: left;
+  margin-bottom: 40px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.logo {
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -1px;
+  color: var(--primary);
+  text-transform: uppercase;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo::after {
+  content: 'PRO';
+  font-size: 10px;
+  background: var(--primary);
+  color: black;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 700;
+  vertical-align: middle;
+}
+
+.search-box {
+  background: var(--card-bg);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  transition: var(--transition);
+}
+
+.search-box:focus-within {
+  border-color: var(--primary);
+  box-shadow: 0 0 15px var(--primary-glow);
+}
+
+.search-box input {
+  background: transparent;
+  border: none;
+  color: white;
+  padding: 10px 20px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 16px;
+  width: 250px;
+  outline: none;
+}
+
+.search-box button {
+  background: var(--primary);
+  border: none;
+  border-radius: 8px;
+  padding: 10px 24px;
+  color: black;
+  font-weight: 700;
+  cursor: pointer;
+  transition: var(--transition);
+  text-transform: uppercase;
+  font-size: 14px;
+}
+
+.search-box button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px var(--primary-glow);
+  background: #ffc933;
+}
+
+/* Cards & Stats */
+.card {
+  background: var(--card-bg);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--glass-border), transparent);
+}
+
+.card h2 {
+  margin-top: 0;
+  font-size: 18px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-secondary);
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 16px;
+}
+
+.stat-item {
+  background: var(--glass-highlight);
+  border: 1px solid var(--glass-border);
+  padding: 20px 10px;
+  border-radius: 12px;
+  text-align: center;
+  transition: var(--transition);
+}
+
+.stat-item:hover {
+  background: rgba(255,255,255,0.05);
+  border-color: var(--glass-highlight);
+  transform: translateY(-5px);
+}
+
+.stat-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+}
+
+.stat-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--primary);
+  text-shadow: 0 0 10px rgba(247, 181, 0, 0.2);
+}
+
+/* Visualizations */
+.visual-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 24px;
+}
+
+/* Weapons & Maps */
+.grid-small {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.weapon-card {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  background: rgba(255,255,255,0.03);
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  transition: var(--transition);
+}
+
+.weapon-card:hover {
+  background: rgba(255,255,255,0.06);
+  border-color: var(--glass-border);
+}
+
+.weapon-card img {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 5px rgba(247, 181, 0, 0.2));
+}
+
+.weapon-info .name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: block;
+}
+
+.weapon-info .count {
+  font-size: 12px;
+  color: var(--primary);
+}
+
+.map-card {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  height: 140px;
+  border: 1px solid var(--glass-border);
+}
+
+.map-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.5s ease;
+}
+
+.map-card:hover img {
+  transform: scale(1.1);
+}
+
+.map-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(0deg, rgba(0,0,0,0.8) 0%, transparent 60%);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 15px;
+}
+
+.map-name {
+  font-weight: 700;
+  font-size: 16px;
+  text-transform: uppercase;
+}
+
+.map-stats {
+  font-size: 12px;
+  color: var(--primary);
+}
+
+/* Loading Effects */
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(247, 181, 0, 0.1);
+  border-radius: 50%;
+  border-top-color: var(--primary);
+  animation: spin 1s linear infinite;
+  margin: 40px auto;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 900px) {
+  .visual-grid {
+    grid-template-columns: 1fr;
+  }
+  .header {
+    flex-direction: column;
+    gap: 20px;
+    align-items: flex-start;
+  }
+  .search-box {
+    width: 100%;
+  }
+  .search-box input {
+    width: 100%;
+  }
+}

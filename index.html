@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PUBG Tracker PRO | Estatísticas em Tempo Real</title>
+    <meta name="description" content="Acompanhe suas estatísticas do PUBG com precisão profissional. KD, vitórias, armas favoritas e análise de mapas.">
+    
+    <!-- External Dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="index.css">
+</head>
+<body>
+
+<div class="container">
+    <!-- Header with Search -->
+    <header class="header">
+        <div class="logo">PUBG TRACKER</div>
+        
+        <div class="search-box">
+            <input type="text" id="playerInput" placeholder="Insira seu Nickname..." value="TIAGUERArjdz">
+            <button id="searchBtn">Buscar</button>
+        </div>
+    </header>
+
+    <!-- Global Stats Overview -->
+    <section class="card stats-overview">
+        <h2>📊 Panorama Geral (Lifetime)</h2>
+        <div class="stats-grid" id="globalStats">
+            <div class="stat-item">
+                <div class="stat-label">Kills</div>
+                <div class="stat-value" id="killsVal">-</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">K/D Ratio</div>
+                <div class="stat-value" id="kdVal">-</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">Vitórias</div>
+                <div class="stat-value" id="winsVal">-</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">Partidas</div>
+                <div class="stat-value" id="matchesVal">-</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">Média de Dano</div>
+                <div class="stat-value" id="damageVal">-</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">Headshot %</div>
+                <div class="stat-value" id="hsVal">-</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Analysis Grid -->
+    <div class="visual-grid">
+        <!-- KD Progression Chart -->
+        <section class="card">
+            <h2>📈 Trend de Performance (Últimas Partidas)</h2>
+            <div style="height: 300px; position: relative;">
+                <canvas id="kdTrendChart"></canvas>
+            </div>
+        </section>
+
+        <!-- Top Weapons -->
+        <section class="card">
+            <h2>🔫 Arsenal de Elite</h2>
+            <div id="weaponsGrid" class="grid-small">
+                <!-- Weapons will be injected here -->
+                <p style="color: grey; font-size: 14px;">Aguardando dados...</p>
+            </div>
+        </section>
+    </div>
+
+    <!-- Maps History -->
+    <section class="card">
+        <h2>🗺️ Domínio de Território</h2>
+        <div id="mapsGrid" class="grid-small">
+            <!-- Maps will be injected here -->
+        </div>
+    </section>
+
+    <!-- Footer Meta -->
+    <footer style="text-align: center; color: var(--text-secondary); font-size: 12px; margin-top: 40px; border-top: 1px solid var(--glass-border); padding-top: 20px;">
+        PUBG Tracker PRO v2.0 - Desenvolvido para TIAGUERArjdz
+    </footer>
+</div>
+
+<!-- Scripts -->
+<script src="app.js"></script>
+
+</body>
+</html>
