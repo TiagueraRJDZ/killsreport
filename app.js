@@ -175,11 +175,22 @@ async function loadMatchHistoryWithFilter(matches, playerId, officialName) {
     const kdHistory = [];
 
     // 1. Fetch match details in parallel to filter by date
-    const matchDetails = await Promise.all(
-        matches.map(m => fetch(`${BASE_URL}${SHARD}/matches/${m.id}`, {
-            headers: { Authorization: API_KEY, Accept: "application/vnd.api+json" }
-        }).then(res => res.json()))
-    );
+    // FIX: Graceful error handling for CORS or broken matches
+    const matchPromises = matches.map(async (m) => {
+        try {
+            const res = await fetch(`${BASE_URL}${SHARD}/matches/${m.id}`, {
+                headers: { Authorization: API_KEY, Accept: "application/vnd.api+json" }
+            });
+            if (!res.ok) return null;
+            return await res.json();
+        } catch (e) {
+            console.warn(`Erro ao carregar partida ${m.id}:`, e);
+            return null;
+        }
+    });
+
+    const matchDetailsRaw = await Promise.all(matchPromises);
+    const matchDetails = matchDetailsRaw.filter(m => m !== null);
 
     // 2. Process each match
     for (const m of matchDetails) {
