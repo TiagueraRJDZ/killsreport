@@ -8,20 +8,18 @@ const SHARD = "steam";
 const BASE_URL = "https://api.pubg.com/shards/";
 
 const mapMeta = {
-  erangel_main: { name: "Erangel", img: "https://raw.githubusercontent.com/pubg/api-assets/master/Assets/Maps/Erangel_Main_High_Res.png" },
-  desert_main: { name: "Miramar", img: "https://raw.githubusercontent.com/pubg/api-assets/master/Assets/Maps/Miramar_Main_High_Res.png" },
-  savage_main: { name: "Sanhok", img: "https://raw.githubusercontent.com/pubg/api-assets/master/Assets/Maps/Sanhok_Main_High_Res.png" },
-  sanhok: { name: "Sanhok", img: "https://raw.githubusercontent.com/pubg/api-assets/master/Assets/Maps/Sanhok_Main_High_Res.png" },
-  baltic_main: { name: "Vikendi", img: "https://raw.githubusercontent.com/pubg/api-assets/master/Assets/Maps/Vikendi_Main_High_Res.png" },
-  dihorotok_main: { name: "Vikendi", img: "https://raw.githubusercontent.com/pubg/api-assets/master/Assets/Maps/Vikendi_Main_High_Res.png" },
-  vikendi: { name: "Vikendi", img: "https://raw.githubusercontent.com/pubg/api-assets/master/Assets/Maps/Vikendi_Main_High_Res.png" },
-  tiger_main: { name: "Taego", img: "https://raw.githubusercontent.com/pubg/api-assets/master/Assets/Maps/Taego_Main_High_Res.png" },
-  taego: { name: "Taego", img: "https://raw.githubusercontent.com/pubg/api-assets/master/Assets/Maps/Taego_Main_High_Res.png" },
-  kiki_main: { name: "Deston", img: "https://raw.githubusercontent.com/pubg/api-assets/master/Assets/Maps/Deston_Main_High_Res.png" },
-  neon_main: { name: "Rondo", img: "https://raw.githubusercontent.com/pubg/api-assets/master/Assets/Maps/Rondo_Main_High_Res.png" },
-  main_main: { name: "Rondo", img: "https://raw.githubusercontent.com/pubg/api-assets/master/Assets/Maps/Rondo_Main_High_Res.png" },
-  chimera_main: { name: "Paramo", img: "https://raw.githubusercontent.com/pubg/api-assets/master/Assets/Maps/Paramo_Main_High_Res.png" },
-  summerland_main: { name: "Karakin", img: "https://raw.githubusercontent.com/pubg/api-assets/master/Assets/Maps/Karakin_Main_High_Res.png" }
+  erangel_main: { name: "Erangel", img: "Erangel.png" },
+  baltic_main: { name: "Erangel (Remastered)", img: "Erangel.png" }, // Mapping from user
+  desert_main: { name: "Miramar", img: "Miramar.png" },
+  savage_main: { name: "Sanhok", img: "Sanhok.png" },
+  dihorotok_main: { name: "Vikendi", img: "Vikendi.png" },
+  summerland_main: { name: "Karakin", img: "Karakin.jpg" }, // Note: .jpg extension as in repo
+  chimera_main: { name: "Paramo", img: "Paramo.png" },
+  range_main: { name: "Camp Jackal", img: "Camp_Jackal.png" },
+  kiki_main: { name: "Deston", img: "Deston.png" },
+  tiger_main: { name: "Taego", img: "Taego.png" },
+  neon_main: { name: "Rondo", img: "Rondo.png" },
+  heaven_main: { name: "Haven", img: "Haven.png" }
 };
 
 let chartInstance = null;
@@ -228,10 +226,12 @@ function renderMaps(data) {
 
     container.innerHTML = entries.map(([id, count]) => {
         // FIX: Case-insensitive map lookup
-        const info = mapMeta[id] || mapMeta[id.toLowerCase()] || { name: id, img: 'https://via.placeholder.com/300x150?text=PUBG+Map' };
+        const info = mapMeta[id] || mapMeta[id.toLowerCase()] || { name: id, img: 'Camp_Jackal.png' }; 
+        const imgUrl = `https://raw.githubusercontent.com/pubg/api-assets/master/Assets/MapSelection/${info.img}`;
+        
         return `
             <div class="map-card">
-                <img src="${info.img}">
+                <img src="${imgUrl}">
                 <div class="map-overlay">
                     <span class="map-name">${info.name}</span>
                     <span class="map-stats">${count} Partidas</span>
