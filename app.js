@@ -195,6 +195,8 @@ async function loadMatchHistoryWithFilter(matches, playerId, officialName) {
     const matchDetails = matchDetailsRaw.filter(m => m !== null);
 
     const teamHistory = [];
+    const hallOfFameAggr = {}; // { player: { kills: 0, damage: 0, ... } }
+    let sharedMatchesFound = 0;
 
     // 2. Process each match
     for (const m of matchDetails) {
@@ -202,9 +204,29 @@ async function loadMatchHistoryWithFilter(matches, playerId, officialName) {
         const matchData = m.data;
         const createdAt = matchData.attributes.createdAt.split("T")[0];
 
-        // Filter by date
-        if (createdAt !== selectedDate) continue;
+        // Find friends in this match
+        const friendsInMatch = (m.included || []).filter(inc => 
+            inc.type === "participant" && FRIENDS.includes(inc.attributes?.stats?.name)
+        );
 
+        // --- HALL OF FAME LOGIC (Last 20 shared matches) ---
+        if (friendsInMatch && friendsInMatch.length > 1 && sharedMatchesFound < 20) {
+            sharedMatchesFound++;
+            friendsInMatch.forEach(p => {
+                const name = p.attributes.stats.name;
+                if (!hallOfFameAggr[name]) hallOfFameAggr[name] = { kills: 0, damage: 0, assists: 0, neymar: 0, time: 0, matches: 0 };
+                hallOfFameAggr[name].kills += p.attributes.stats.kills;
+                hallOfFameAggr[name].damage += Math.round(p.attributes.stats.damageDealt);
+                hallOfFameAggr[name].assists += p.attributes.stats.assists;
+                hallOfFameAggr[name].neymar += p.attributes.stats.DBNOs;
+                hallOfFameAggr[name].time += Math.floor(p.attributes.stats.timeSurvived);
+                hallOfFameAggr[name].matches++;
+            });
+        }
+
+        // Filter by date for main UI
+        if (createdAt !== selectedDate) continue;
+        
         matchCount++;
         const mapName = matchData.attributes.mapName;
         maps[mapName] = (maps[mapName] || 0) + 1;
@@ -286,6 +308,7 @@ async function loadMatchHistoryWithFilter(matches, playerId, officialName) {
 
     loadingStatus.style.display = "none";
     renderTeamStats(teamHistory);
+    renderHallOfFame(hallOfFameAggr);
 
     // 3. Final Calculation
     const kd = totalDeaths ? (totalKills / totalDeaths).toFixed(2) : totalKills;
@@ -423,6 +446,53 @@ function resetStats() {
     document.getElementById("weaponsGrid").innerHTML = "";
     document.getElementById("mapsGrid").innerHTML = "";
     document.getElementById("teamStatsSection").style.display = "none";
+    document.getElementById("hallOfFameSection").style.display = "none";
+}
+
+function renderHallOfFame(data) {
+    const section = document.getElementById("hallOfFameSection");
+    const container = document.getElementById("hallOfFameContainer");
+    
+    const players = Object.entries(data);
+    if (players.length === 0) {
+        section.style.display = "none";
+        return;
+    }
+
+    section.style.display = "block";
+    
+    // Sort by Kills (primary) and Damage (secondary)
+    const sorted = players.sort((a,b) => b[1].kills - a[1].kills || b[1].damage - a[1].damage);
+
+    const rows = sorted.map(([name, stats], index) => {
+        const timeH = Math.floor(stats.time / 3600);
+        const timeM = Math.floor((stats.time % 3600) / 60);
+        const isMior = index === 0;
+
+        return `
+            <tr class="${isMior ? 'rank-top' : ''}">
+                <td class="rank-number">#${index + 1}</td>
+                <td>
+                    <span class="player-name">${name}</span>
+                    ${isMior ? '<span class="mior-badge">Mior Siuuuu!!!</span>' : ''}
+                </td>
+                <td class="highlight-stat">${stats.kills} Kills</td>
+                <td><span style="color: #999;">Dano:</span> ${stats.damage.toLocaleString()}</td>
+                <td><span style="color: #999;">Asst:</span> ${stats.assists}</td>
+                <td><span style="color: #999;">Neymar:</span> ${stats.neymar}</td>
+                <td><span style="color: #999;">Partidas:</span> ${stats.matches}</td>
+                <td style="font-size: 11px; text-align: right;">${timeH}h ${timeM}m vivo</td>
+            </tr>
+        `;
+    }).join('');
+
+    container.innerHTML = `
+        <table class="rank-table">
+            <tbody>
+                ${rows}
+            </tbody>
+        </table>
+    `;
 }
 
 function renderTeamStats(history) {

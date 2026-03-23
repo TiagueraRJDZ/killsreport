@@ -389,3 +389,67 @@ body {
   color: var(--text-secondary);
   font-family: monospace;
 }
+
+/* Hall of Fame - Sou o mior Siuuuu!!! */
+.hall-fame-card {
+  border: 2px solid #ffd700;
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.15);
+  background: linear-gradient(135deg, rgba(22, 22, 22, 0.95), rgba(40, 35, 20, 0.95));
+}
+
+.hall-fame-card h2 {
+  color: #ffd700 !important;
+  text-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+}
+
+.rank-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 8px;
+  margin-top: 15px;
+}
+
+.rank-table tr {
+  background: rgba(255, 255, 255, 0.02);
+  transition: var(--transition);
+}
+
+.rank-table td {
+  padding: 15px;
+  border-top: 1px solid var(--glass-border);
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.rank-table td:first-child { border-left: 1px solid var(--glass-border); border-radius: 8px 0 0 8px; }
+.rank-table td:last-child { border-right: 1px solid var(--glass-border); border-radius: 0 8px 8px 0; }
+
+.rank-top {
+  background: linear-gradient(90deg, rgba(255, 215, 0, 0.1), transparent) !important;
+  border-color: #ffd700 !important;
+  position: relative;
+}
+
+.rank-top td {
+  border-color: rgba(255, 215, 0, 0.3) !important;
+  color: #ffd700;
+  font-weight: 700;
+}
+
+.rank-number {
+  font-size: 20px;
+  font-weight: 800;
+  width: 40px;
+  text-align: center;
+}
+
+.mior-badge {
+  background: #ffd700;
+  color: black;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+  margin-left: 10px;
+  vertical-align: middle;
+}
