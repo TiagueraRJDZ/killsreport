@@ -8,19 +8,20 @@ const SHARD = "steam";
 const BASE_URL = "https://api.pubg.com/shards/";
 
 const mapMeta = {
-  Erangel_Main: { name: "Erangel", img: "https://static.wikia.nocookie.net/battlegrounds/images/e/e4/Erangel_Map.jpg" },
-  Desert_Main: { name: "Miramar", img: "https://static.wikia.nocookie.net/battlegrounds/images/f/f5/Miramar_Map.jpg" },
-  Savage_Main: { name: "Sanhok", img: "https://static.wikia.nocookie.net/battlegrounds/images/4/4f/Sanhok_Map.jpg" },
-  Sanhok: { name: "Sanhok", img: "https://static.wikia.nocookie.net/battlegrounds/images/4/4f/Sanhok_Map.jpg" },
-  Baltic_Main: { name: "Vikendi", img: "https://static.wikia.nocookie.net/battlegrounds/images/5/58/Vikendi_Map.jpg" },
-  Dihorotok_Main: { name: "Vikendi", img: "https://static.wikia.nocookie.net/battlegrounds/images/b/b3/Vikendi_Map.jpg" },
-  Vikendi: { name: "Vikendi", img: "https://static.wikia.nocookie.net/battlegrounds/images/5/58/Vikendi_Map.jpg" },
-  Tiger_Main: { name: "Taego", img: "https://static.wikia.nocookie.net/battlegrounds/images/5/5d/Taego_Map.jpg" },
-  Taego: { name: "Taego", img: "https://static.wikia.nocookie.net/battlegrounds/images/5/5d/Taego_Map.jpg" },
-  Kiki_Main: { name: "Deston", img: "https://static.wikia.nocookie.net/battlegrounds/images/b/b3/Deston_Map.jpg" },
-  Neon_Main: { name: "Rondo", img: "https://static.wikia.nocookie.net/battlegrounds/images/5/54/Rondo_Map.jpg" },
-  Chimera_Main: { name: "Paramo", img: "https://static.wikia.nocookie.net/battlegrounds/images/a/a2/Paramo_Map.jpg" },
-  Summerland_Main: { name: "Karakin", img: "https://static.wikia.nocookie.net/battlegrounds/images/e/e0/Karakin_Map.jpg" }
+  erangel_main: { name: "Erangel", img: "https://raw.githubusercontent.com/pubg/api-assets/master/Assets/Maps/Erangel_Main_High_Res.png" },
+  desert_main: { name: "Miramar", img: "https://raw.githubusercontent.com/pubg/api-assets/master/Assets/Maps/Miramar_Main_High_Res.png" },
+  savage_main: { name: "Sanhok", img: "https://raw.githubusercontent.com/pubg/api-assets/master/Assets/Maps/Sanhok_Main_High_Res.png" },
+  sanhok: { name: "Sanhok", img: "https://raw.githubusercontent.com/pubg/api-assets/master/Assets/Maps/Sanhok_Main_High_Res.png" },
+  baltic_main: { name: "Vikendi", img: "https://raw.githubusercontent.com/pubg/api-assets/master/Assets/Maps/Vikendi_Main_High_Res.png" },
+  dihorotok_main: { name: "Vikendi", img: "https://raw.githubusercontent.com/pubg/api-assets/master/Assets/Maps/Vikendi_Main_High_Res.png" },
+  vikendi: { name: "Vikendi", img: "https://raw.githubusercontent.com/pubg/api-assets/master/Assets/Maps/Vikendi_Main_High_Res.png" },
+  tiger_main: { name: "Taego", img: "https://raw.githubusercontent.com/pubg/api-assets/master/Assets/Maps/Taego_Main_High_Res.png" },
+  taego: { name: "Taego", img: "https://raw.githubusercontent.com/pubg/api-assets/master/Assets/Maps/Taego_Main_High_Res.png" },
+  kiki_main: { name: "Deston", img: "https://raw.githubusercontent.com/pubg/api-assets/master/Assets/Maps/Deston_Main_High_Res.png" },
+  neon_main: { name: "Rondo", img: "https://raw.githubusercontent.com/pubg/api-assets/master/Assets/Maps/Rondo_Main_High_Res.png" },
+  main_main: { name: "Rondo", img: "https://raw.githubusercontent.com/pubg/api-assets/master/Assets/Maps/Rondo_Main_High_Res.png" },
+  chimera_main: { name: "Paramo", img: "https://raw.githubusercontent.com/pubg/api-assets/master/Assets/Maps/Paramo_Main_High_Res.png" },
+  summerland_main: { name: "Karakin", img: "https://raw.githubusercontent.com/pubg/api-assets/master/Assets/Maps/Karakin_Main_High_Res.png" }
 };
 
 let chartInstance = null;
@@ -196,7 +197,14 @@ function renderWeapons(data) {
 
     container.innerHTML = sorted.map(([id, count]) => {
         const cleanName = id.replace('Item_Weapon_', '').replace('Weap', '').replace('_C', '').replace('BP_', '');
-        const imgUrl = `https://raw.githubusercontent.com/pubg/api-assets/master/Assets/Icons/Weapons/Item_Weapon_${cleanName}_C.png`;
+        // FIX: Precise URL mapping for weapon icons
+        const mapping = {
+            'AUG': 'AUG', 'MP5K': 'MP5K', 'HK416': 'HK416', 'Thompson': 'Thompson',
+            'Berreta686': 'Berreta686', 'QBZ95': 'QBZ95', 'M16A4': 'M16A4', 'SCAR-L': 'SCAR-L',
+            'AKM': 'AKM', 'M24': 'M24', 'Kar98k': 'Kar98k', 'Mini14': 'Mini14', 'SKS': 'SKS'
+        };
+        const weaponId = mapping[cleanName] || cleanName;
+        const imgUrl = `https://raw.githubusercontent.com/pubg/api-assets/master/Assets/Item/Weapon/Main/Item_Weapon_${weaponId}_C.png`;
         
         return `
         <div class="weapon-card">
@@ -219,7 +227,8 @@ function renderMaps(data) {
     }
 
     container.innerHTML = entries.map(([id, count]) => {
-        const info = mapMeta[id] || { name: id, img: 'https://via.placeholder.com/300x150?text=PUBG+Map' };
+        // FIX: Case-insensitive map lookup
+        const info = mapMeta[id] || mapMeta[id.toLowerCase()] || { name: id, img: 'https://via.placeholder.com/300x150?text=PUBG+Map' };
         return `
             <div class="map-card">
                 <img src="${info.img}">
