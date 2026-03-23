@@ -468,13 +468,34 @@ function renderHallOfFame(data) {
         const timeH = Math.floor(stats.time / 3600);
         const timeM = Math.floor((stats.time % 3600) / 60);
         const isMior = index === 0;
+        const isLast = index === sorted.length - 1 && sorted.length > 1;
+
+        let badgeText = '';
+        let badgeStyle = '';
+
+        if (isMior) {
+            badgeText = 'Mior Siuuuu!!!';
+            badgeStyle = 'background: #ffd700; color: #000;';
+        } else if (isLast) {
+            badgeText = 'Xupingole o lixo supremo';
+            badgeStyle = 'background: #4a3728; color: #fff;';
+        } else if (index === 1) {
+            badgeText = 'Lixinho';
+            badgeStyle = 'background: #8e8e8e; color: #fff;';
+        } else if (index === 2) {
+            badgeText = 'Verme';
+            badgeStyle = 'background: #6d6d6d; color: #fff;';
+        } else if (index === 3) {
+            badgeText = 'Inseto';
+            badgeStyle = 'background: #555; color: #fff;';
+        }
 
         return `
             <tr class="${isMior ? 'rank-top' : ''}">
                 <td class="rank-number">#${index + 1}</td>
                 <td>
                     <span class="player-name">${name}</span>
-                    ${isMior ? '<span class="mior-badge">Mior Siuuuu!!!</span>' : ''}
+                    ${badgeText ? `<span class="mior-badge" style="${badgeStyle}">${badgeText}</span>` : ''}
                 </td>
                 <td class="highlight-stat">${stats.kills} Kills</td>
                 <td><span style="color: #999;">Dano:</span> ${stats.damage.toLocaleString()}</td>
