@@ -1,6 +1,6 @@
 /**
- * PUBG Tracker PRO - Core Application Logic
- * Optimized for performance and modern UI/UX
+ * PUBG Tracker PRO - Core Application Logic v2.1
+ * Optimized for performance and Daily Stats aggregation
  */
 
 const API_KEY = "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJqdGkiOiJmNTQyODZmMC1iM2U0LTAxMzctYjg4MC01ZmJlZDQ2ZWVjMzkiLCJpc3MiOiJnYW1lbG9ja2VyIiwiaWF0IjoxNTY3ODkxOTY2LCJwdWIiOiJibHVlaG9sZSIsInRpdGxlIjoicHViZyIsImFwcCI6ImVyaWNrbWRzOC1nbWFpIn0.1aRSRA6OKyUVRKG-CuwuU8vPblihryupGCfAEW9w1z8";
@@ -23,6 +23,11 @@ let chartInstance = null;
 document.addEventListener('DOMContentLoaded', () => {
     const searchBtn = document.getElementById('searchBtn');
     const playerInput = document.getElementById('playerInput');
+    const dateFilter = document.getElementById('dateFilter');
+
+    // Default to today
+    const today = new Date().toISOString().split("T")[0];
+    dateFilter.value = today;
 
     searchBtn.addEventListener('click', () => loadPlayerData(playerInput.value));
     
@@ -34,7 +39,8 @@ async function loadPlayerData(nickname) {
     if (!nickname) return;
     
     setLoading(true);
-    
+    resetStats();
+
     try {
         const pResponse = await fetch(`${BASE_URL}${SHARD}/players?filter[playerNames]=${nickname}`, {
             headers: { Authorization: API_KEY, Accept: "application/vnd.api+json" }
@@ -45,14 +51,12 @@ async function loadPlayerData(nickname) {
         const pData = await pResponse.json();
         const player = pData.data[0];
         const playerId = player.id;
+        const officialName = player.attributes.name;
         const matches = player.relationships.matches.data;
 
-        // Run Parallel Stats Loading
-        await Promise.all([
-            loadLifetimeStats(playerId),
-            loadMatchHistory(matches.slice(0, 6)) // Analyze last 6 matches
-        ]);
-        
+        // Process Match History and Manual Daily Stats
+        await loadMatchHistoryWithFilter(matches.slice(0, 40), playerId, officialName); 
+
     } catch (err) {
         console.error(err);
         alert("Erro ao buscar dados: " + err.message);
@@ -61,47 +65,54 @@ async function loadPlayerData(nickname) {
     }
 }
 
-async function loadLifetimeStats(id) {
-    const response = await fetch(`${BASE_URL}${SHARD}/players/${id}/seasons/lifetime`, {
-        headers: { Authorization: API_KEY, Accept: "application/vnd.api+json" }
-    });
+async function loadMatchHistoryWithFilter(matches, playerId, officialName) {
+    const selectedDate = document.getElementById("dateFilter").value;
+    const statsLabel = document.getElementById("statsTypeLabel");
+    const loadingStatus = document.getElementById("loadingStatus");
     
-    const data = await response.json();
-    const modes = data.data.attributes.gameModeStats;
-    
-    // Prioritize Squad, Duo, then Solo
-    const m = modes.squad.roundsPlayed > 0 ? modes.squad : 
-             modes.duo.roundsPlayed > 0 ? modes.duo : modes.solo;
+    statsLabel.innerText = `(${selectedDate.split('-').reverse().slice(0,2).reverse().join('/')})`;
+    loadingStatus.style.display = "block";
 
-    if (!m) return;
+    // Daily Stats Accumulators
+    let totalKills = 0;
+    let totalDeaths = 0;
+    let totalDamage = 0;
+    let totalWins = 0;
+    let headshots = 0;
+    let matchCount = 0;
 
-    const kd = (m.kills / (m.losses || 1)).toFixed(2);
-    const hs = ((m.headshotKills / (m.kills || 1)) * 100).toFixed(1);
-
-    updateText('killsVal', m.kills);
-    updateText('kdVal', kd);
-    updateText('winsVal', m.wins);
-    updateText('matchesVal', m.roundsPlayed);
-    updateText('damageVal', m.damageDealt.toFixed(0));
-    updateText('hsVal', hs + "%");
-}
-
-async function loadMatchHistory(matches) {
     const weapons = {};
     const maps = {};
     const kdHistory = [];
 
-    // Fetch match data in parallel for speed optimization
+    // 1. Fetch match details in parallel to filter by date
     const matchDetails = await Promise.all(
         matches.map(m => fetch(`${BASE_URL}${SHARD}/matches/${m.id}`, {
             headers: { Authorization: API_KEY, Accept: "application/vnd.api+json" }
         }).then(res => res.json()))
     );
 
-    // Process Telemetries
+    // 2. Process each match
     for (const m of matchDetails) {
-        const mapName = m.data.attributes.mapName;
+        if (!m.data) continue;
+        const matchData = m.data;
+        const createdAt = matchData.attributes.createdAt.split("T")[0];
+
+        // Filter by date
+        if (createdAt !== selectedDate) continue;
+
+        matchCount++;
+        const mapName = matchData.attributes.mapName;
         maps[mapName] = (maps[mapName] || 0) + 1;
+
+        // --- FIX: CALCULO DE VITÓRIAS ---
+        const participant = m.included?.find(inc => 
+            inc.type === "participant" && 
+            inc.relationships?.player?.data?.id === playerId
+        );
+        if (participant && participant.attributes.stats.winPlace === 1) {
+            totalWins++;
+        }
 
         const telemetryUrl = m.included.find(i => i.type === "asset")?.attributes.URL;
         if (telemetryUrl) {
@@ -110,21 +121,52 @@ async function loadMatchHistory(matches) {
             
             let matchKills = 0;
             logs.forEach(e => {
-                if (e._T === "LogPlayerKillV2") {
+                // Count Kills & Headshots (Using official name to avoid casing issues)
+                if (e._T === "LogPlayerKillV2" && e.killer?.name === officialName) {
                     const weapon = e.weapon?.itemId;
                     if (weapon) {
                         weapons[weapon] = (weapons[weapon] || 0) + 1;
                     }
+                    // FIX: Headshot check (Reason can be HeadShot or headshot)
+                    if (e.damageReason?.toLowerCase().includes("headshot")) {
+                        headshots++;
+                    }
                     matchKills++;
+                    totalKills++;
+                }
+
+                // Count Damage Dealt by Player
+                if (e._T === "LogPlayerTakeDamage" && e.attacker?.name === officialName) {
+                    totalDamage += e.damage;
+                }
+
+                // Check if Player died in this match
+                if (e._T === "LogPlayerKillV2" && e.victim?.name === officialName) {
+                    totalDeaths++;
                 }
             });
             kdHistory.push(matchKills);
         }
     }
 
+    loadingStatus.style.display = "none";
+
+    // 3. Final Calculation
+    const kd = totalDeaths ? (totalKills / totalDeaths).toFixed(2) : totalKills;
+    const hs = totalKills ? ((headshots / totalKills) * 100).toFixed(1) : "0.0";
+    const avgDmg = matchCount ? (totalDamage / matchCount).toFixed(0) : 0;
+
+    // Update UI
+    updateText('killsVal', totalKills);
+    updateText('kdVal', kd);
+    updateText('winsVal', totalWins); 
+    updateText('matchesVal', matchCount);
+    updateText('damageVal', avgDmg);
+    updateText('hsVal', hs + "%");
+
     renderWeapons(weapons);
     renderMaps(maps);
-    renderProgressionChart(kdHistory.reverse()); // Chronological order
+    renderProgressionChart(kdHistory.reverse().slice(0, 10)); // Last 10 matches of that day
 }
 
 function renderWeapons(data) {
@@ -133,6 +175,11 @@ function renderWeapons(data) {
         .slice(0, 6);
 
     const container = document.getElementById("weaponsGrid");
+    if (sorted.length === 0) {
+        container.innerHTML = `<p style="color: grey; font-size: 14px; grid-column: 1/-1; text-align: center;">Nenhuma partida encontrada.</p>`;
+        return;
+    }
+
     container.innerHTML = sorted.map(([id, count]) => `
         <div class="weapon-card">
             <img src="https://pubglist.com/images/weapons/${id}.png" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3222/3222718.png'">
@@ -146,7 +193,14 @@ function renderWeapons(data) {
 
 function renderMaps(data) {
     const container = document.getElementById("mapsGrid");
-    container.innerHTML = Object.entries(data).map(([id, count]) => {
+    const entries = Object.entries(data);
+    
+    if (entries.length === 0) {
+        container.innerHTML = `<p style="color: grey; font-size: 14px; grid-column: 1/-1; text-align: center;">Sem atividade no mapa para esta data.</p>`;
+        return;
+    }
+
+    container.innerHTML = entries.map(([id, count]) => {
         const info = mapMeta[id] || { name: id, img: 'https://via.placeholder.com/300x150?text=PUBG+Map' };
         return `
             <div class="map-card">
@@ -162,9 +216,9 @@ function renderMaps(data) {
 
 function renderProgressionChart(data) {
     const ctx = document.getElementById("kdTrendChart").getContext("2d");
-    
-    // Clear existing chart
     if (chartInstance) chartInstance.destroy();
+
+    if (data.length === 0) return;
 
     const gradient = ctx.createLinearGradient(0, 0, 0, 400);
     gradient.addColorStop(0, 'rgba(247, 181, 0, 0.5)');
@@ -182,29 +236,18 @@ function renderProgressionChart(data) {
                 fill: true,
                 tension: 0.4,
                 pointBackgroundColor: '#f7b500',
-                pointBorderColor: '#fff',
                 pointBorderWidth: 2,
-                pointRadius: 4,
-                pointHoverRadius: 6
+                pointRadius: 4
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
             scales: {
-                y: {
-                    beginAtZero: true,
-                    grid: { color: 'rgba(255,255,255,0.05)' },
-                    ticks: { color: '#999' }
-                },
-                x: {
-                    grid: { display: false },
-                    ticks: { color: '#999' }
-                }
+                y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#999' } },
+                x: { grid: { display: false }, ticks: { color: '#999' } }
             },
-            plugins: {
-                legend: { display: false }
-            }
+            plugins: { legend: { display: false } }
         }
     });
 }
@@ -219,10 +262,14 @@ function setLoading(isLoading) {
     if (isLoading) {
         btn.innerText = "Buscando...";
         btn.disabled = true;
-        btn.style.opacity = "0.7";
     } else {
         btn.innerText = "Buscar";
         btn.disabled = false;
-        btn.style.opacity = "1";
     }
+}
+
+function resetStats() {
+    ['killsVal', 'kdVal', 'winsVal', 'matchesVal', 'damageVal', 'hsVal'].forEach(id => updateText(id, "-"));
+    document.getElementById("weaponsGrid").innerHTML = "";
+    document.getElementById("mapsGrid").innerHTML = "";
 }

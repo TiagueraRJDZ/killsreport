@@ -18,14 +18,21 @@
         <div class="logo">PUBG TRACKER</div>
         
         <div class="search-box">
-            <input type="text" id="playerInput" placeholder="Insira seu Nickname..." value="TIAGUERArjdz">
+            <div style="display: flex; align-items: center; gap: 10px; padding: 0 10px;">
+                <label for="dateFilter" style="font-size: 12px; color: var(--text-secondary); text-transform: uppercase; font-weight: 700;">Data:</label>
+                <input type="date" id="dateFilter" style="background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); border-radius: 6px; color: white; padding: 5px; font-family: inherit;">
+            </div>
+            <input type="text" id="playerInput" placeholder="Nickname..." value="TIAGUERArjdz" style="width: 180px;">
             <button id="searchBtn">Buscar</button>
         </div>
     </header>
 
     <!-- Global Stats Overview -->
     <section class="card stats-overview">
-        <h2>📊 Panorama Geral (Lifetime)</h2>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2 style="margin: 0;">📊 Estatísticas <span id="statsTypeLabel">(Hoje)</span></h2>
+            <div id="loadingStatus" style="font-size: 12px; color: var(--primary); display: none;">Calculando telemetria...</div>
+        </div>
         <div class="stats-grid" id="globalStats">
             <div class="stat-item">
                 <div class="stat-label">Kills</div>
