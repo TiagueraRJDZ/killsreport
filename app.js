@@ -126,6 +126,20 @@ document.addEventListener('DOMContentLoaded', () => {
 async function loadPlayerData(nickname) {
     if (!nickname) return;
     
+    // Validate if the selected date exceeds the 14-day API limit.
+    const selectedDateStr = document.getElementById("dateFilter").value;
+    const selectedDate = new Date(selectedDateStr + 'T00:00:00');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const diffTime = today - selectedDate;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays > 14) {
+        alert("A API oficial do PUBG fornece apenas dados dos últimos 14 dias. A data selecionada é muito antiga e não retornará resultados.");
+        return;
+    }
+    
     setLoading(true);
     resetStats();
 
@@ -151,15 +165,14 @@ async function loadPlayerData(nickname) {
         // --- AGGREGATE UNIQUE MATCHES FOR HALL OF FAME & DAILY ---
         const allMatchIds = new Set();
         
-        // Add last 30 matches from EVERY friend to the fetch list to account for filtered event modes
+        // Add matches from ALL players to the fetch list to account for filtered event modes
         allPlayers.forEach(p => {
             const mData = p.relationships?.matches?.data || [];
-            mData.slice(0, 30).forEach(m => allMatchIds.add(m.id));
+            // O jogador pesquisado precisa puxar todas as partidas disponíveis nos últimos 14 dias para bater com as datas de pesquisa antigas do usuário sem retornar zero.
+            // Os amigos precisam de até 50 partidas puxadas para o sistema poder filtrar e preencher as 20 oficiais corretamente pro Hall da Fama.
+            const limit = (p.id === playerId) ? mData.length : 50;
+            mData.slice(0, limit).forEach(m => allMatchIds.add(m.id));
         });
-
-        // Ensure we have at least the last 40 for the searched player for their history
-        const mainMatches = mainPlayer.relationships?.matches?.data || [];
-        mainMatches.slice(0, 40).forEach(m => allMatchIds.add(m.id));
 
         const uniqueMatchIds = Array.from(allMatchIds);
 
