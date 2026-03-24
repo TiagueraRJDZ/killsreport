@@ -226,6 +226,13 @@ async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
     for (const m of matchDetails) {
         if (!m.data) continue;
         const matchData = m.data;
+        const matchType = matchData.attributes.matchType;
+
+        // Ignore TDM, Events, and Training modes
+        if (matchType === "event" || matchType === "arcade" || matchType === "training") {
+            continue;
+        }
+
         const createdAt = matchData.attributes.createdAt.split("T")[0];
 
         // Find friends in this match
