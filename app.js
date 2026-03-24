@@ -106,7 +106,7 @@ const ID_NAMES = {
   "WeapWinchester_C": "S1897"
 };
 
-const FRIENDS = ["TIAGUERArjdz", "Alis00n", "M4LW4RE-", "LillWhind", "DeLLano_"];
+const FRIENDS = ["TIAGUERArjdz", "Alis00n", "M4LW4RE-", "LillWhind", "DeLLano_", "VZN-exe", "chicoTUF"];
 
 let chartInstance = null;
 
