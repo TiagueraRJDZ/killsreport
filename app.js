@@ -251,6 +251,9 @@ async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
             inc.type === "participant" && FRIENDS.includes(inc.attributes?.stats?.name)
         );
 
+        const rosters = (m.included || []).filter(inc => inc.type === "roster");
+        const allParticipantsList = (m.included || []).filter(inc => inc.type === "participant");
+
         // --- HALL OF FAME LOGIC (Accumulate stats for all 5 friends) ---
         if (friendsInMatch && friendsInMatch.length > 0) {
             friendsInMatch.forEach(p => {
@@ -260,6 +263,23 @@ async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
                 }
                 // Only count the last 20 matches PER PLAYER
                 if (hallOfFameAggr[name].matches < 20) {
+                    
+                    const myRoster = rosters.find(r => 
+                        r.relationships?.participants?.data?.some(participant => participant.id === p.id)
+                    );
+                    
+                    let friendsTeammates = [];
+                    let randomTeammates = [];
+
+                    if (myRoster) {
+                        const participantIds = myRoster.relationships.participants.data.map(d => d.id);
+                        const rosterParticipants = allParticipantsList.filter(inc => participantIds.includes(inc.id));
+                        const allTeammates = rosterParticipants.map(rp => rp.attributes.stats.name).filter(n => n !== name);
+                        
+                        friendsTeammates = allTeammates.filter(t => FRIENDS.includes(t));
+                        randomTeammates = allTeammates.filter(t => !FRIENDS.includes(t));
+                    }
+
                     hallOfFameAggr[name].kills += p.attributes.stats.kills;
                     hallOfFameAggr[name].damage += Math.round(p.attributes.stats.damageDealt);
                     hallOfFameAggr[name].assists += p.attributes.stats.assists;
@@ -274,6 +294,9 @@ async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
                     
                     hallOfFameAggr[name].history.push({
                         fullDate: matchData.attributes.createdAt,
+                        mode: matchData.attributes.gameMode,
+                        friendsTeammates: friendsTeammates,
+                        randomTeammates: randomTeammates,
                         kills: p.attributes.stats.kills,
                         damage: Math.round(p.attributes.stats.damageDealt),
                         assists: p.attributes.stats.assists,
@@ -592,6 +615,29 @@ function renderHallOfFame(data) {
                 timeStr = `${day}/${month} ${hrs}:${mins} <span style="color:#555; display:block; font-size:10px;">${agoStr}</span>`;
             }
 
+            let modeIcon = '';
+            if (h.mode && h.mode.includes('squad')) {
+                modeIcon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>`;
+            } else if (h.mode && h.mode.includes('duo')) {
+                modeIcon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>`;
+            } else {
+                modeIcon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>`;
+            }
+            
+            let teammatesHtml = '';
+            if (h.friendsTeammates && h.friendsTeammates.length > 0) {
+                teammatesHtml += `<span style="color: #ffd700; margin-right: 5px; font-weight: bold; font-size: 10px;">Ego Team:</span>` + 
+                    h.friendsTeammates.map(t => `<span style="background: #333; padding: 2px 6px; border-radius: 4px; margin-right: 4px; font-size: 10px;">${t}</span>`).join('');
+            }
+            if (h.randomTeammates && h.randomTeammates.length > 0) {
+                if (teammatesHtml !== '') teammatesHtml += '<br style="margin-bottom: 2px;">';
+                teammatesHtml += `<span style="color: #888; margin-right: 5px; font-size: 10px;">Aleatórios:</span>` + 
+                    h.randomTeammates.map(t => `<span style="background: #222; border: 1px solid #444; color: #888; padding: 2px 6px; border-radius: 4px; margin-right: 4px; font-size: 10px;">${t}</span>`).join('');
+            }
+            if (!teammatesHtml) {
+                teammatesHtml = '<span style="color: #666; font-size: 10px;">-</span>';
+            }
+
             return `
             <tr>
                 <td style="color: #888; font-size: 11px; padding: 4px 0;">${timeStr}</td>
@@ -600,7 +646,8 @@ function renderHallOfFame(data) {
                 <td style="color: #aaa;">${h.damage}</td>
                 <td style="color: #aaa;">${h.assists}</td>
                 <td style="color: #aaa;">${h.neymar}</td>
-                <td style="color: #888; font-size: 11px;">${h.died ? 'Morto' : 'Vivo'}</td>
+                <td style="text-align: center;" title="${h.mode}">${modeIcon}</td>
+                <td>${teammatesHtml}</td>
             </tr>
         `;
         }).join('');
@@ -639,7 +686,8 @@ function renderHallOfFame(data) {
                                 <th>Dano</th>
                                 <th>Assists</th>
                                 <th>Neymar</th>
-                                <th>Status</th>
+                                <th style="text-align: center;">Modo</th>
+                                <th>Companheiros</th>
                             </tr>
                         </thead>
                         <tbody>
