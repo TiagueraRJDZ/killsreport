@@ -18,11 +18,13 @@
         <div class="logo">Ego Team <span style="font-size: 18px; font-weight: 400; opacity: 0.7; margin-left: 5px;">Tracker</span></div>
         
         <div class="search-box">
-            <div style="display: flex; align-items: center; gap: 10px; padding: 0 10px;">
-                <label for="dateFilter" style="font-size: 12px; color: var(--text-secondary); text-transform: uppercase; font-weight: 700;">Data:</label>
-                <input type="date" id="dateFilter" style="background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); border-radius: 6px; color: white; padding: 5px; font-family: inherit;">
+            <div class="search-field date-field">
+                <label for="dateFilter">Data:</label>
+                <input type="date" id="dateFilter">
             </div>
-            <input type="text" id="playerInput" placeholder="Nickname..." value="TIAGUERArjdz" style="width: 180px;">
+            <div class="search-field player-field">
+                <input type="text" id="playerInput" placeholder="Nickname..." value="TIAGUERArjdz">
+            </div>
             <button id="searchBtn">Buscar</button>
         </div>
     </header>

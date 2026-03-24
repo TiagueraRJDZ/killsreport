@@ -92,14 +92,38 @@ body {
   box-shadow: 0 0 15px var(--primary-glow);
 }
 
-.search-box input {
+.search-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 10px;
+}
+
+.search-field label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.search-field input[type="date"] {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--glass-border);
+  border-radius: 6px;
+  color: white;
+  padding: 5px;
+  font-family: inherit;
+  font-size: 14px;
+}
+
+.search-box input[type="text"] {
   background: transparent;
   border: none;
   color: white;
-  padding: 10px 20px;
+  padding: 10px;
   font-family: 'Outfit', sans-serif;
   font-size: 16px;
-  width: 250px;
+  width: 180px;
   outline: none;
 }
 
@@ -114,6 +138,7 @@ body {
   transition: var(--transition);
   text-transform: uppercase;
   font-size: 14px;
+  white-space: nowrap;
 }
 
 .search-box button:hover {
@@ -304,13 +329,102 @@ body {
   .header {
     flex-direction: column;
     gap: 20px;
-    align-items: flex-start;
+    align-items: center;
+    text-align: center;
+    margin-bottom: 30px;
   }
   .search-box {
     width: 100%;
+    flex-direction: column;
+    padding: 15px;
+    gap: 15px;
   }
-  .search-box input {
+  .search-field {
     width: 100%;
+    justify-content: center;
+  }
+  .search-box input[type="text"] {
+    width: 100% !important;
+    text-align: center;
+    border: 1px solid var(--glass-border);
+    border-radius: 8px;
+    padding: 12px;
+  }
+  .search-box button {
+    width: 100%;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+}
+
+@media (max-width: 600px) {
+  .logo {
+    flex-direction: column;
+    gap: 2px;
+    line-height: 1;
+  }
+  
+  .logo span {
+    margin-left: 0 !important;
+  }
+
+  .container {
+    padding: 15px 12px;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .stat-item {
+    padding: 15px 5px;
+  }
+
+  .stat-value {
+    font-size: 20px;
+  }
+
+  .card {
+    padding: 20px 15px;
+  }
+
+  .card h2 {
+    font-size: 15px;
+  }
+
+  /* Handle Table Overflows */
+  .rank-table, .team-table {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 8px;
+  }
+
+  /* Specifically for the Hall of Fame table which has too many columns */
+  #hallOfFameContainer, .team-table-container {
+    overflow-x: auto;
+    width: 100%;
+    margin-bottom: 15px;
+  }
+
+  .rank-table td, .rank-table th, .team-table td, .team-table th {
+    white-space: nowrap;
+    padding: 10px 8px;
+    font-size: 12px;
+  }
+
+  .mior-badge {
+    display: inline-block;
+    margin-left: 5px;
+    margin-top: 0;
+  }
+
+  .visual-grid canvas {
+    max-height: 250px;
   }
 }
 
