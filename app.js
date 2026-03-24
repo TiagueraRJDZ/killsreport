@@ -154,18 +154,17 @@ async function loadPlayerData(nickname) {
         // --- AGGREGATE UNIQUE MATCHES FOR HALL OF FAME & DAILY ---
         const allMatchIds = new Set();
         
-        // Add last 20 matches from EVERY friend to the fetch list
+        // Add last 30 matches from EVERY friend to the fetch list to account for filtered event modes
         allPlayers.forEach(p => {
             const mData = p.relationships?.matches?.data || [];
-            mData.slice(0, 20).forEach(m => allMatchIds.add(m.id));
+            mData.slice(0, 30).forEach(m => allMatchIds.add(m.id));
         });
 
         // Ensure we have at least the last 40 for the searched player for their history
         const mainMatches = mainPlayer.relationships?.matches?.data || [];
         mainMatches.slice(0, 40).forEach(m => allMatchIds.add(m.id));
 
-        // Limit total matches to avoid excessive load (max 60 unique most recent)
-        const uniqueMatchIds = Array.from(allMatchIds).slice(0, 60);
+        const uniqueMatchIds = Array.from(allMatchIds);
 
         // Process everything
         await loadMatchHistoryWithFilter(uniqueMatchIds, playerId, officialName); 
@@ -199,21 +198,33 @@ async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
     const maps = {};
     const kdHistory = [];
 
-    // FIX: Fetch match details for each ID
-    const matchPromises = matchIds.map(async (id) => {
-        try {
-            const res = await fetch(`${BASE_URL}${SHARD}/matches/${id}`, {
-                headers: { Authorization: API_KEY, Accept: "application/vnd.api+json" }
-            });
-            if (!res.ok) return null;
-            return await res.json();
-        } catch (e) {
-            console.warn(`Erro ao carregar partida ${id}:`, e);
-            return null;
+    // FIX: Fetch match details in chunks to avoid API rate limits (429 Too Many Requests)
+    const matchDetailsRaw = [];
+    const chunkSize = 20;
+    
+    for (let i = 0; i < matchIds.length; i += chunkSize) {
+        const chunk = matchIds.slice(i, i + chunkSize);
+        const promises = chunk.map(async (id) => {
+            try {
+                const res = await fetch(`${BASE_URL}${SHARD}/matches/${id}`, {
+                    headers: { Authorization: API_KEY, Accept: "application/vnd.api+json" }
+                });
+                if (!res.ok) return null;
+                return await res.json();
+            } catch (e) {
+                console.warn(`Erro ao carregar partida ${id}:`, e);
+                return null;
+            }
+        });
+        const chunkResults = await Promise.all(promises);
+        matchDetailsRaw.push(...chunkResults);
+        
+        // Minor delay between chunks if we have more to process
+        if (i + chunkSize < matchIds.length) {
+            await new Promise(resolve => setTimeout(resolve, 300));
         }
-    });
+    }
 
-    const matchDetailsRaw = await Promise.all(matchPromises);
     const matchDetails = matchDetailsRaw.filter(m => m !== null);
 
     // Daily Stats Accumulators (for searched player on selected date)
