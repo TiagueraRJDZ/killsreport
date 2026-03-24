@@ -121,9 +121,6 @@ document.addEventListener('DOMContentLoaded', () => {
     dateFilter.value = today;
 
     searchBtn.addEventListener('click', () => loadPlayerData(playerInput.value));
-    
-    // Auto-load initial player
-    loadPlayerData(playerInput.value);
 });
 
 async function loadPlayerData(nickname) {
