@@ -255,7 +255,9 @@ async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
         if (friendsInMatch && friendsInMatch.length > 0) {
             friendsInMatch.forEach(p => {
                 const name = p.attributes.stats.name;
-                if (!hallOfFameAggr[name]) hallOfFameAggr[name] = { kills: 0, damage: 0, assists: 0, neymar: 0, time: 0, matches: 0 };
+                if (!hallOfFameAggr[name]) {
+                    hallOfFameAggr[name] = { kills: 0, damage: 0, assists: 0, neymar: 0, time: 0, matches: 0, headshots: 0, deaths: 0, history: [] };
+                }
                 // Only count the last 20 matches PER PLAYER
                 if (hallOfFameAggr[name].matches < 20) {
                     hallOfFameAggr[name].kills += p.attributes.stats.kills;
@@ -263,7 +265,22 @@ async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
                     hallOfFameAggr[name].assists += p.attributes.stats.assists;
                     hallOfFameAggr[name].neymar += p.attributes.stats.DBNOs;
                     hallOfFameAggr[name].time += Math.floor(p.attributes.stats.timeSurvived);
+                    hallOfFameAggr[name].headshots += p.attributes.stats.headshotKills || 0;
+                    
+                    const died = (p.attributes.stats.winPlace === 1 || p.attributes.stats.winPlace === "1") ? 0 : 1;
+                    hallOfFameAggr[name].deaths += died;
+                    
                     hallOfFameAggr[name].matches++;
+                    
+                    hallOfFameAggr[name].history.push({
+                        fullDate: matchData.attributes.createdAt,
+                        kills: p.attributes.stats.kills,
+                        damage: Math.round(p.attributes.stats.damageDealt),
+                        assists: p.attributes.stats.assists,
+                        neymar: p.attributes.stats.DBNOs,
+                        headshots: p.attributes.stats.headshotKills || 0,
+                        died: died
+                    });
                 }
             });
         }
@@ -552,8 +569,46 @@ function renderHallOfFame(data) {
             badgeStyle = 'background: #555; color: #fff;';
         }
 
+        const kd = (stats.kills / Math.max(1, stats.deaths)).toFixed(2);
+        const hsRate = stats.kills > 0 ? Math.round((stats.headshots / stats.kills) * 100) : 0;
+
+        const historyRows = (stats.history || []).map(h => {
+            let timeStr = "";
+            if (h.fullDate) {
+                const d = new Date(h.fullDate);
+                const diffMs = new Date() - d;
+                const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
+                const diffMins = Math.floor(diffMs / (1000 * 60));
+                
+                let agoStr = "";
+                if (diffHrs < 1) agoStr = `${diffMins}m atrás`;
+                else if (diffHrs < 24) agoStr = `${diffHrs}h atrás`;
+                else agoStr = `${Math.floor(diffHrs/24)}d atrás`;
+
+                const day = String(d.getDate()).padStart(2, '0');
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const hrs = String(d.getHours()).padStart(2, '0');
+                const mins = String(d.getMinutes()).padStart(2, '0');
+                timeStr = `${day}/${month} ${hrs}:${mins} <span style="color:#555; display:block; font-size:10px;">${agoStr}</span>`;
+            }
+
+            return `
+            <tr>
+                <td style="color: #888; font-size: 11px; padding: 4px 0;">${timeStr}</td>
+                <td style="color: #fff;">${h.kills}</td>
+                <td style="color: #ccc;">${h.headshots}</td>
+                <td style="color: #aaa;">${h.damage}</td>
+                <td style="color: #aaa;">${h.assists}</td>
+                <td style="color: #aaa;">${h.neymar}</td>
+                <td style="color: #888; font-size: 11px;">${h.died ? 'Morto' : 'Vivo'}</td>
+            </tr>
+        `;
+        }).join('');
+
+        const safeId = name.replace(/[^a-zA-Z0-9]/g, '');
+
         return `
-            <tr class="${isMior ? 'rank-top' : ''}">
+            <tr class="${isMior ? 'rank-top' : ''}" style="cursor: pointer;" onclick="document.getElementById('history-${safeId}').style.display = document.getElementById('history-${safeId}').style.display === 'none' ? 'table-row' : 'none'">
                 <td class="rank-number">#${index + 1}</td>
                 <td>
                     <span class="player-name">${name}</span>
@@ -565,6 +620,33 @@ function renderHallOfFame(data) {
                 <td><span style="color: #999;">Neymar:</span> ${stats.neymar}</td>
                 <td><span style="color: #999;">Partidas:</span> ${stats.matches}</td>
                 <td style="font-size: 11px; text-align: right;">${timeH}h ${timeM}m vivo</td>
+            </tr>
+            <tr id="history-${safeId}" style="display: none; background: #1a1a1a;">
+                <td colspan="8" style="padding: 15px; border-radius: 8px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 10px; border-bottom: 1px solid #333; padding-bottom: 5px;">
+                        <span style="color: #ffd700; font-weight: bold; font-size: 13px;">DETALHES DAS ${stats.matches} PARTIDAS:</span>
+                        <div style="font-size: 13px;">
+                            <span style="margin-right: 15px; color: #fff;">K/D Global: <strong style="color: #ffd700;">${kd}</strong></span>
+                            <span style="color: #fff;">Taxa de HS: <strong style="color: #ffd700;">${hsRate}%</strong></span>
+                        </div>
+                    </div>
+                    <table style="width: 100%; text-align: left; font-size: 12px; border-collapse: collapse;">
+                        <thead>
+                            <tr style="color: #ffd700; border-bottom: 1px solid #333;">
+                                <th style="padding: 5px 0;">Data</th>
+                                <th>Kills</th>
+                                <th>Headshots</th>
+                                <th>Dano</th>
+                                <th>Assists</th>
+                                <th>Neymar</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${historyRows}
+                        </tbody>
+                    </table>
+                </td>
             </tr>
         `;
     }).join('');
