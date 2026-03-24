@@ -7,20 +7,6 @@ const API_KEY = "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJqdGkiOiJmNTQyODZ
 const SHARD = "steam";
 const BASE_URL = "https://api.pubg.com/shards/";
 
-const mapMeta = {
-  erangel_main: { name: "Erangel", img: "Erangel.png" },
-  baltic_main: { name: "Erangel (Remastered)", img: "Erangel.png" },
-  desert_main: { name: "Miramar", img: "Miramar.png" },
-  savage_main: { name: "Sanhok", img: "Sanhok.png" },
-  dihorotok_main: { name: "Vikendi", img: "Vikendi.png" },
-  summerland_main: { name: "Karakin", img: "Karakin.jpg" },
-  chimera_main: { name: "Paramo", img: "Paramo.png" },
-  range_main: { name: "Camp Jackal", img: "Camp_Jackal.png" },
-  kiki_main: { name: "Deston", img: "Deston.png" },
-  tiger_main: { name: "Taego", img: "Taego.png" },
-  neon_main: { name: "Rondo", img: "Rondo.png" },
-  heaven_main: { name: "Haven", img: "Haven.png" }
-};
 
 const ID_NAMES = {
   "AIPawn_Base_Female_C": "Bot",
@@ -186,7 +172,6 @@ async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
     let matchCount = 0;
 
     const weapons = {};
-    const maps = {};
     const kdHistory = [];
 
     // FIX: Fetch match details in chunks to avoid API rate limits (429 Too Many Requests)
@@ -280,7 +265,14 @@ async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
 
                         randomTeammates = rosterParticipants
                             .filter(rp => rp.attributes.stats.name !== name && !FRIENDS.includes(rp.attributes.stats.name))
-                            .map(rp => rp.attributes.stats.name);
+                            .map(rp => ({
+                                name: rp.attributes.stats.name,
+                                kills: rp.attributes.stats.kills,
+                                damage: Math.round(rp.attributes.stats.damageDealt),
+                                assists: rp.attributes.stats.assists,
+                                neymar: rp.attributes.stats.DBNOs,
+                                headshots: rp.attributes.stats.headshotKills || 0
+                            }));
                     }
 
                     hallOfFameAggr[name].kills += p.attributes.stats.kills;
@@ -332,8 +324,6 @@ async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
 
         // No date filter - process all found matches
         matchCount++;
-        const mapName = matchData.attributes.mapName;
-        maps[mapName] = (maps[mapName] || 0) + 1;
 
         // --- FIX: CALCULO DE VITÓRIAS ---
         const participant = m.included?.find(inc => 
@@ -421,7 +411,6 @@ async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
 
     // Removed redundant direct updates, now using updateDashboard
     renderWeapons(weapons);
-    renderMaps(maps);
     renderProgressionChart(kdHistory.reverse().slice(0, 10)); // Last 10 matches of that day
 }
 
@@ -474,32 +463,6 @@ function renderWeapons(data) {
             </div>
         </div>
     `}).join('');
-}
-
-function renderMaps(data) {
-    const container = document.getElementById("mapsGrid");
-    const entries = Object.entries(data);
-    
-    if (entries.length === 0) {
-        container.innerHTML = `<p style="color: grey; font-size: 14px; grid-column: 1/-1; text-align: center;">Sem atividade no mapa para esta data.</p>`;
-        return;
-    }
-
-    container.innerHTML = entries.map(([id, count]) => {
-        // FIX: Case-insensitive map lookup
-        const info = mapMeta[id] || mapMeta[id.toLowerCase()] || { name: id, img: 'Camp_Jackal.png' }; 
-        const imgUrl = `https://raw.githubusercontent.com/pubg/api-assets/master/Assets/MapSelection/${info.img}`;
-        
-        return `
-            <div class="map-card">
-                <img src="${imgUrl}">
-                <div class="map-overlay">
-                    <span class="map-name">${info.name}</span>
-                    <span class="map-stats">${count} Partidas</span>
-                </div>
-            </div>
-        `;
-    }).join('');
 }
 
 function renderProgressionChart(data) {
@@ -559,7 +522,6 @@ function setLoading(isLoading) {
 function resetStats() {
     ['killsVal', 'kdVal', 'winsVal', 'matchesVal', 'damageVal', 'hsVal'].forEach(id => updateText(id, "-"));
     document.getElementById("weaponsGrid").innerHTML = "";
-    document.getElementById("mapsGrid").innerHTML = "";
     document.getElementById("hallOfFameSection").style.display = "none";
 }
 
@@ -639,31 +601,46 @@ function renderHallOfFame(data) {
             
             let teammatesHtml = '';
             const matchRowId = `match-${safeId}-${(Math.random()*10000).toFixed(0)}`;
+            
+            // Ego Team Section
+            let egoHtml = '';
             if (h.friendsTeammates && h.friendsTeammates.length > 0) {
-                teammatesHtml += `<span style="color: #ffd700; margin-right: 5px; font-weight: bold; font-size: 10px;">Ego Team:</span>` + 
+                egoHtml = `<div style="display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-bottom: 8px;">
+                    <span style="color: #ffd700; font-weight: 800; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; min-width: 65px;">Ego Team:</span>` +
                     h.friendsTeammates.map(t => {
                         const myStats = JSON.stringify({ name: name, kills: h.kills, damage: h.damage, assists: h.assists, headshots: h.headshots, neymar: h.neymar }).replace(/"/g, '&quot;');
                         const friendStats = JSON.stringify(t).replace(/"/g, '&quot;');
                         return `<span onclick="toggleVersus('${matchRowId}', ${myStats}, ${friendStats}); event.stopPropagation();" 
-                             style="background: #333; border: 1px solid var(--primary); padding: 2px 6px; border-radius: 4px; margin-right: 4px; font-size: 10px; color: #fff; white-space: nowrap; cursor: pointer;"
+                             style="background: rgba(255,215,0,0.1); border: 1px solid rgba(255,215,0,0.4); padding: 3px 8px; border-radius: 4px; font-size: 10px; color: #ffd700; font-weight: 700; cursor: pointer; transition: all 0.2s;"
                              class="teammate-badge" title="Clique para Versus">
                             ${t.name}
                         </span>`;
-                    }).join('');
-                
-                // ADD "TODOS" BUTTON
-                const myStatsAll = JSON.stringify({ name: name, kills: h.kills, damage: h.damage, assists: h.assists, headshots: h.headshots, neymar: h.neymar }).replace(/"/g, '&quot;');
-                const allTeammatesJson = JSON.stringify(h.friendsTeammates).replace(/"/g, '&quot;');
-                teammatesHtml += `<span onclick="toggleVersusAll('${matchRowId}', ${myStatsAll}, ${allTeammatesJson}); event.stopPropagation();" 
-                    style="background: var(--primary); color: #000; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 800; cursor: pointer; margin-left: 5px;">
-                    TODOS
-                </span>`;
+                    }).join('') +
+                    // TODOS Button
+                    `<span onclick="toggleVersusAll('${matchRowId}', ${JSON.stringify({ name: name, kills: h.kills, damage: h.damage, assists: h.assists, headshots: h.headshots, neymar: h.neymar }).replace(/"/g, '&quot;')}, ${JSON.stringify([...h.friendsTeammates, ...h.randomTeammates]).replace(/"/g, '&quot;')}); event.stopPropagation();" 
+                        style="background: #ffd700; color: #111; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 900; cursor: pointer; margin-left: auto; box-shadow: 0 4px 10px rgba(0,0,0,0.3);">
+                        TODOS
+                    </span>
+                </div>`;
             }
+
+            // Aleatórios Section
+            let randomHtml = '';
             if (h.randomTeammates && h.randomTeammates.length > 0) {
-                if (teammatesHtml !== '') teammatesHtml += '<br style="margin-bottom: 2px;">';
-                teammatesHtml += `<span style="color: #888; margin-right: 5px; font-size: 10px;">Aleatórios:</span>` + 
-                    h.randomTeammates.map(t => `<span style="background: #222; border: 1px solid #444; color: #888; padding: 2px 6px; border-radius: 4px; margin-right: 4px; font-size: 10px;">${t}</span>`).join('');
+                randomHtml = `<div style="display: flex; align-items: center; flex-wrap: wrap; gap: 6px;">
+                    <span style="color: #64748b; font-weight: 800; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; min-width: 65px;">Aleatórios:</span>` +
+                    h.randomTeammates.map(t => {
+                        const myStats = JSON.stringify({ name: name, kills: h.kills, damage: h.damage, assists: h.assists, headshots: h.headshots, neymar: h.neymar }).replace(/"/g, '&quot;');
+                        const friendStats = JSON.stringify(t).replace(/"/g, '&quot;');
+                        return `<span onclick="toggleVersus('${matchRowId}', ${myStats}, ${friendStats}); event.stopPropagation();" 
+                             style="background: rgba(100,116,139,0.1); border: 1px solid rgba(100,116,139,0.3); padding: 3px 8px; border-radius: 4px; font-size: 10px; color: #94a3b8; cursor: pointer; transition: all 0.2s;"
+                             class="teammate-badge" title="Clique para Versus">
+                            ${t.name}
+                        </span>`;
+                    }).join('') + `</div>`;
             }
+
+            teammatesHtml = `<div style="padding: 5px 0; min-width: 300px;">${egoHtml}${randomHtml}</div>`;
             if (!teammatesHtml) {
                 teammatesHtml = '<span style="color: #666; font-size: 10px;">-</span>';
             }
