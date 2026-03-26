@@ -1,0 +1,166 @@
+/* 
+ * PUBG Tracker PRO - OBS Overlay CSS 
+ * Design System - Obsidian & Gold (Stream Optimized)
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap');
+
+:root {
+  --primary: #f7b500;
+  --primary-glow: rgba(247, 181, 0, 0.4);
+  --bg-transparent: rgba(6, 6, 6, 0.7); /* Partially transparent for OBS */
+  --card-bg: rgba(22, 22, 22, 0.85);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --text-primary: #ffffff;
+  --text-secondary: #aaaaaa;
+  --success: #27ae60;
+  --danger: #eb5757;
+  --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  background: transparent; /* Essential for OBS */
+  color: var(--text-primary);
+  font-family: 'Outfit', sans-serif;
+  margin: 0;
+  padding: 10px;
+  overflow: hidden;
+  width: 400px; /* Fixed width for better OBS control */
+}
+
+/* Header Section */
+.overlay-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  background: var(--bg-transparent);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  padding: 12px 15px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  animation: slideDown 0.5s ease-out;
+}
+
+.player-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.player-name {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--primary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.refresh-status {
+  font-size: 10px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+.today-summary {
+  text-align: right;
+}
+
+.summary-value {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.summary-label {
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
+/* Match List */
+.match-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.match-card {
+  display: flex;
+  align-items: center;
+  background: var(--card-bg);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  padding: 8px 12px;
+  gap: 12px;
+  animation: fadeIn 0.4s ease-out backwards;
+  transition: var(--transition);
+}
+
+.match-card:hover {
+  border-color: var(--primary);
+  transform: translateX(5px);
+}
+
+.match-rank {
+  font-size: 18px;
+  font-weight: 800;
+  width: 35px;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.rank-win { color: var(--primary); }
+
+.match-details {
+  flex-grow: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.stat-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-val {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.stat-lbl {
+  font-size: 9px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+.damage-val { color: #ebbc00; }
+.kills-val { color: var(--primary); }
+
+.match-meta {
+  font-size: 10px;
+  color: var(--text-secondary);
+  text-align: right;
+}
+
+/* Animations */
+@keyframes slideDown {
+  from { transform: translateY(-20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* Scrollbar for safety but normally hidden */
+::-webkit-scrollbar {
+  width: 0px;
+}
