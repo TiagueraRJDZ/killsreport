@@ -1,5 +1,5 @@
 /**
- * PUBG Tracker PRO - Core Application Logic v2.1
+ * PUBG Tracker PRO - Core Application Logic v2.2
  * Optimized for performance and Daily Stats aggregation
  */
 
