@@ -3,6 +3,25 @@
  * Optimized for performance and Daily Stats aggregation
  */
 
+// Firebase Integration
+import { initializeApp } from "firebase/app";
+import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyA_aDw11Cx-Shs4jZ4LcWGO5Ou9iDnGdzw",
+  authDomain: "pugb-egoteam.firebaseapp.com",
+  projectId: "pugb-egoteam",
+  storageBucket: "pugb-egoteam.firebasestorage.app",
+  messagingSenderId: "191418899183",
+  appId: "1:191418899183:web:833ad403d0f07bd2e5991a"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+
 const API_KEY = "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJqdGkiOiJmNTQyODZmMC1iM2U0LTAxMzctYjg4MC01ZmJlZDQ2ZWVjMzkiLCJpc3MiOiJnYW1lbG9ja2VyIiwiaWF0IjoxNTY3ODkxOTY2LCJwdWIiOiJibHVlaG9sZSIsInRpdGxlIjoicHViZyIsImFwcCI6ImVyaWNrbWRzOC1nbWFpIn0.1aRSRA6OKyUVRKG-CuwuU8vPblihryupGCfAEW9w1z8";
 const SHARD = "steam";
 const BASE_URL = "https://api.pubg.com/shards/";
@@ -858,5 +877,12 @@ function toggleVersusAll(containerId, me, teammates) {
         </td>
     `;
 }
+
+// Export functions to global scope for HTML event handlers
+window.togglePlayerHistory = togglePlayerHistory;
+window.toggleVersus = toggleVersus;
+window.toggleVersusAll = toggleVersusAll;
+window.loadPlayerData = loadPlayerData;
+
 
 
