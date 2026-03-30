@@ -375,14 +375,28 @@ async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
             totalDeaths += (pStats.winPlace === 1 || pStats.winPlace === "1") ? 0 : 1;
             headshots += pStats.headshotKills || 0;
             kdHistory.push({ fullDate: matchData.attributes.createdAt, kills: pStats.kills });
-            
-            // Fila de telemetria apenas para pegar as armas do player pesquisado
-            const telemetryUrl = m.included.find(i => i.type === "asset")?.attributes.URL;
-            if (telemetryUrl && telemetryTasks.length < 20) {
-                telemetryTasks.push({ url: telemetryUrl, matchId: matchData.id });
-            }
         }
+
     }
+
+    // --- BUILD TELEMETRY TASKS from actual HoF history entries ---
+    // Strategy: after hallOfFameAggr is fully built, collect telemetry for EXACTLY
+    // the matches that appear in any player's history. This guarantees 100% coverage
+    // for all players (DeLLano_, TIAGUERArjdz, etc.) regardless of match sort order.
+    const matchDetailMap = new Map(matchDetails.filter(m => m.data).map(m => [m.data.id, m]));
+    const coveredTelemetryIds = new Set();
+    Object.values(hallOfFameAggr).forEach(pData => {
+        pData.history.forEach(h => {
+            if (coveredTelemetryIds.has(h.matchId)) return;
+            const matchDetail = matchDetailMap.get(h.matchId);
+            if (!matchDetail) return;
+            const telemetryUrl = matchDetail.included?.find(i => i.type === "asset")?.attributes.URL;
+            if (telemetryUrl) {
+                coveredTelemetryIds.add(h.matchId);
+                telemetryTasks.push({ url: telemetryUrl, matchId: h.matchId });
+            }
+        });
+    });
 
     // --- BATCH PARALLEL TELEMETRY FETCH ---
     const chunkSizeTelemetry = 5;
@@ -394,18 +408,30 @@ async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
                 if (!tResponse.ok) return;
                 const logs = await tResponse.json();
                 
-                logs.forEach(e => {
-                    if (e._T === "LogPlayerKillV2" && e.killer?.name?.toLowerCase() === officialName.toLowerCase()) {
-                        const kDI = e.killerDamageInfo;
-                        const weapon = kDI?.damageCauserName || e.damageCauserName || e.weapon?.itemId;
-                        if (weapon) {
-                            weapons[weapon] = (weapons[weapon] || 0) + 1;
-                        }
+                // Build a case-insensitive lookup map for HoF players (computed once per task)
+                const hofNameMap = {};
+                Object.keys(hallOfFameAggr).forEach(n => { hofNameMap[n.toLowerCase()] = n; });
 
-                        // Classify kill: Bot or Player
+                logs.forEach(e => {
+                    if (e._T !== "LogPlayerKillV2") return;
+                    const killerName = e.killer?.name;
+                    if (!killerName) return;
+
+                    const killerLower = killerName.toLowerCase();
+                    const kDI = e.killerDamageInfo;
+                    const weapon = kDI?.damageCauserName || e.damageCauserName || e.weapon?.itemId;
+
+                    // Weapons: still only for the searched player
+                    if (killerLower === officialName.toLowerCase() && weapon) {
+                        weapons[weapon] = (weapons[weapon] || 0) + 1;
+                    }
+
+                    // Bot/Player kill classification for ALL HoF players
+                    const hofKey = hofNameMap[killerLower];
+                    if (hofKey) {
                         const victimCharName = e.victim?.character?.name || '';
                         const isBot = victimCharName.toLowerCase().includes('aipawn');
-                        const histEntry = (hallOfFameAggr[officialName]?.history || []).find(h => h.matchId === task.matchId);
+                        const histEntry = (hallOfFameAggr[hofKey]?.history || []).find(h => h.matchId === task.matchId);
                         if (histEntry) {
                             if (histEntry.botKills === null) histEntry.botKills = 0;
                             if (histEntry.playerKills === null) histEntry.playerKills = 0;
