@@ -120,25 +120,17 @@ let currentAggregatedData = {}; // Global store for click-to-update dashboard
 document.addEventListener('DOMContentLoaded', () => {
     const searchBtn = document.getElementById('searchBtn');
     const playerInput = document.getElementById('playerInput');
+    
+    // Press enter to search
+    playerInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') loadPlayerData(playerInput.value);
+    });
+
     searchBtn.addEventListener('click', () => loadPlayerData(playerInput.value));
 });
 
 async function loadPlayerData(nickname) {
     if (!nickname) return;
-    
-    // Validate if the selected date exceeds the 14-day API limit.
-    const selectedDateStr = document.getElementById("dateFilter").value;
-    const selectedDate = new Date(selectedDateStr + 'T00:00:00');
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    const diffTime = today - selectedDate;
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
-    if (diffDays > 14) {
-        alert("A API oficial do PUBG fornece apenas dados dos últimos 14 dias. A data selecionada é muito antiga e não retornará resultados.");
-        return;
-    }
     
     setLoading(true);
     resetStats();
@@ -162,21 +154,18 @@ async function loadPlayerData(nickname) {
         const playerId = mainPlayer.id;
         const officialName = mainPlayer.attributes.name;
 
-        // --- AGGREGATE UNIQUE MATCHES FOR HALL OF FAME & DAILY ---
+        // --- AGGREGATE UNIQUE MATCHES FOR HALL OF FAME ---
         const allMatchIds = new Set();
         
-        // Add matches from ALL players to the fetch list to account for filtered event modes
         allPlayers.forEach(p => {
             const mData = p.relationships?.matches?.data || [];
-            // O jogador pesquisado precisa puxar todas as partidas disponíveis nos últimos 14 dias para bater com as datas de pesquisa antigas do usuário sem retornar zero.
-            // Os amigos precisam de até 50 partidas puxadas para o sistema poder filtrar e preencher as 20 oficiais corretamente pro Hall da Fama.
-            const limit = (p.id === playerId) ? mData.length : 50;
-            mData.slice(0, limit).forEach(m => allMatchIds.add(m.id));
+            // Get up to 50 matches for each to ensure we find at least 20 official ones (ignoring arcade/TDM)
+            mData.slice(0, 50).forEach(m => allMatchIds.add(m.id));
         });
 
         const uniqueMatchIds = Array.from(allMatchIds);
 
-        // Process everything
+        // Process everything (showing last 20 games of each player)
         await loadMatchHistoryWithFilter(uniqueMatchIds, playerId, officialName); 
 
     } catch (err) {
@@ -240,19 +229,20 @@ async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
     const teamHistory = [];
     const hallOfFameAggr = {}; // { player: { kills: 0, damage: 0, ... } }
     let globalMatchesProcessed = 0;
+    const telemetryTasks = [];
 
     // 2. Process each match
     for (const m of matchDetails) {
         if (!m.data) continue;
         const matchData = m.data;
+        const createdAt = matchData.attributes.createdAt.split("T")[0];
+
         const matchType = matchData.attributes.matchType;
 
         // Ignore TDM, Events, and Training modes
         if (matchType === "event" || matchType === "arcade" || matchType === "training") {
             continue;
         }
-
-        const createdAt = matchData.attributes.createdAt.split("T")[0];
 
         // Find friends in this match
         const friendsInMatch = (m.included || []).filter(inc => 
@@ -357,79 +347,53 @@ async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
         // No date filter - process all found matches
         matchCount++;
 
-        // --- FIX: CALCULO DE VITÓRIAS ---
+        // --- BASE STATS AGGREGATION ---
         const participant = m.included?.find(inc => 
             inc.type === "participant" && 
             (inc.relationships?.player?.data?.id === playerId || 
              inc.attributes?.stats?.name === officialName)
         );
-        if (participant && (participant.attributes?.stats?.winPlace === 1 || participant.attributes?.stats?.winPlace === "1")) {
-            totalWins++;
-        }
 
-        const telemetryUrl = m.included.find(i => i.type === "asset")?.attributes.URL;
-        if (telemetryUrl) {
-            const tResponse = await fetch(telemetryUrl);
-            const logs = await tResponse.json();
+        if (participant) {
+            const pStats = participant.attributes.stats;
+            if (pStats.winPlace === 1 || pStats.winPlace === "1") totalWins++;
+            totalKills += pStats.kills;
+            totalDamage += Math.round(pStats.damageDealt);
+            totalDeaths += (pStats.winPlace === 1 || pStats.winPlace === "1") ? 0 : 1;
+            headshots += pStats.headshotKills || 0;
+            kdHistory.push({ fullDate: matchData.attributes.createdAt, kills: pStats.kills });
             
-            let matchKills = 0;
-            logs.forEach(e => {
-                // Count Kills & Headshots (Using lowercase to avoid casing issues)
-                if (e._T === "LogPlayerKillV2" && e.killer?.name?.toLowerCase() === officialName.toLowerCase()) {
-                    const kDI = e.killerDamageInfo;
-                    // FIX: Weapon mapping for LogPlayerKillV2 (nested in killerDamageInfo)
-                    const weapon = kDI?.damageCauserName || e.damageCauserName || e.weapon?.itemId;
-                    if (weapon) {
-                        weapons[weapon] = (weapons[weapon] || 0) + 1;
-                    }
-                    
-                    // FIX: Robust Headshot check (nested in killerDamageInfo)
-                    const isHeadshot = (kDI?.damageReason?.toLowerCase().includes("headshot")) || 
-                                     (e.damageReason?.toLowerCase().includes("headshot")) ||
-                                     (kDI?.additionalInfo?.some(info => info.toLowerCase().includes("headshot")));
-                    
-                    if (isHeadshot) {
-                        headshots++;
-                    }
-                    matchKills++;
-                    totalKills++;
-                }
-
-                // Count Damage Dealt by Player
-                if (e._T === "LogPlayerTakeDamage" && e.attacker?.name?.toLowerCase() === officialName.toLowerCase()) {
-                    totalDamage += e.damage;
-                }
-
-                // Check if Player died in this match
-                if (e._T === "LogPlayerKillV2" && e.victim?.name?.toLowerCase() === officialName.toLowerCase()) {
-                    totalDeaths++;
-                }
-            });
-            kdHistory.push(matchKills);
-
-            // --- COMPREHENSIVE TEAM COMPETITION LOGIC ---
-            const friendsInMatch = m.included?.filter(inc => 
-                inc.type === "participant" && 
-                FRIENDS.some(f => inc.attributes?.stats?.name?.toLowerCase() === f.toLowerCase())
-            );
-
-            if (friendsInMatch && friendsInMatch.length > 1) {
-                const teamStats = friendsInMatch.map(p => ({
-                    name: p.attributes.stats.name,
-                    kills: p.attributes.stats.kills,
-                    damage: Math.round(p.attributes.stats.damageDealt),
-                    assists: p.attributes.stats.assists,
-                    neymar: p.attributes.stats.DBNOs,
-                    time: Math.floor(p.attributes.stats.timeSurvived)
-                }));
-                teamHistory.push({
-                    matchId: matchData.id,
-                    fullDate: matchData.attributes.createdAt,
-                    mode: matchData.attributes.gameMode,
-                    stats: teamStats
-                });
+            // Fila de telemetria apenas para pegar as armas do player pesquisado
+            const telemetryUrl = m.included.find(i => i.type === "asset")?.attributes.URL;
+            if (telemetryUrl && telemetryTasks.length < 20) {
+                telemetryTasks.push({ url: telemetryUrl, matchId: matchData.id });
             }
         }
+    }
+
+    // --- BATCH PARALLEL TELEMETRY FETCH ---
+    const chunkSizeTelemetry = 5;
+    for (let i = 0; i < telemetryTasks.length; i += chunkSizeTelemetry) {
+        const chunk = telemetryTasks.slice(i, i + chunkSizeTelemetry);
+        await Promise.all(chunk.map(async (task) => {
+            try {
+                const tResponse = await fetch(task.url);
+                if (!tResponse.ok) return;
+                const logs = await tResponse.json();
+                
+                logs.forEach(e => {
+                    if (e._T === "LogPlayerKillV2" && e.killer?.name?.toLowerCase() === officialName.toLowerCase()) {
+                        const kDI = e.killerDamageInfo;
+                        const weapon = kDI?.damageCauserName || e.damageCauserName || e.weapon?.itemId;
+                        if (weapon) {
+                            weapons[weapon] = (weapons[weapon] || 0) + 1;
+                        }
+                    }
+                });
+            } catch (err) {
+                console.warn(`Erro na telemetria da partida ${task.matchId}:${err.message}`);
+            }
+        }));
     }
 
     document.getElementById("pageLoader").classList.remove("active");
@@ -443,7 +407,11 @@ async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
 
     // Removed redundant direct updates, now using updateDashboard
     renderWeapons(weapons);
-    renderProgressionChart(kdHistory.reverse().slice(0, 10)); // Last 10 matches of that day
+
+    // Sort KD history chronologically for the chart (oldest to newest)
+    kdHistory.sort((a, b) => new Date(a.fullDate) - new Date(b.fullDate)); 
+    const sortedKdHistory = kdHistory.slice(-10).map(k => k.kills);
+    renderProgressionChart(sortedKdHistory);
 }
 
 function updateDashboard(playerName) {
@@ -569,6 +537,13 @@ function renderHallOfFame(data) {
 
     section.style.display = "block";
     
+    // Sort historical matches by date (Newest first)
+    players.forEach(([_, stats]) => {
+        if (stats.history) {
+            stats.history.sort((a, b) => new Date(b.fullDate) - new Date(a.fullDate));
+        }
+    });
+
     // Sort by Kills (primary) and Damage (secondary)
     const sorted = players.sort((a,b) => b[1].kills - a[1].kills || b[1].damage - a[1].damage);
 
