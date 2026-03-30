@@ -724,3 +724,100 @@ body {
   animation: bounce-gold 1.5s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
   transform-origin: center;
 }
+
+/* ── Kills Hover Popover ── */
+.kills-modal-overlay {
+  position: fixed;
+  z-index: 10000;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.15s ease, visibility 0.15s ease, transform 0.15s ease;
+  transform: translateY(6px);
+}
+
+.kills-modal-overlay.active {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.kills-modal {
+  background: #141414;
+  border: 1px solid rgba(255, 215, 0, 0.2);
+  border-radius: 10px;
+  width: 260px;
+  max-height: 300px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255,215,0,0.06);
+}
+
+.kills-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+.kills-modal-close {
+  background: none;
+  border: none;
+  color: #444;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
+  transition: color 0.15s;
+}
+
+.kills-modal-close:hover { color: #fff; }
+
+.kills-modal-body {
+  padding: 8px 10px 10px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.kills-modal-body::-webkit-scrollbar { width: 3px; }
+.kills-modal-body::-webkit-scrollbar-track { background: transparent; }
+.kills-modal-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+
+.kill-entry {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.03);
+  font-size: 12px;
+  color: #ccc;
+}
+
+.kill-entry .kill-icon { font-size: 13px; flex-shrink: 0; }
+.kill-entry .kill-name { font-weight: 600; flex: 1; }
+.kill-entry .kill-count {
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 1px 6px;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+.kills-modal-empty {
+  text-align: center;
+  color: #444;
+  font-size: 12px;
+  padding: 16px 0;
+}
+

@@ -333,7 +333,9 @@ async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
                         headshots: p.attributes.stats.headshotKills || 0,
                         died: died,
                         botKills: null,
-                        playerKills: null
+                        playerKills: null,
+                        botVictims: [],
+                        playerVictims: []
                     });
                 }
             });
@@ -430,13 +432,21 @@ async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
                     const hofKey = hofNameMap[killerLower];
                     if (hofKey) {
                         const victimCharName = e.victim?.character?.name || '';
+                        const victimName = e.victim?.name || 'Desconhecido';
                         const isBot = victimCharName.toLowerCase().includes('aipawn');
+                        
                         const histEntry = (hallOfFameAggr[hofKey]?.history || []).find(h => h.matchId === task.matchId);
                         if (histEntry) {
                             if (histEntry.botKills === null) histEntry.botKills = 0;
                             if (histEntry.playerKills === null) histEntry.playerKills = 0;
-                            if (isBot) histEntry.botKills++;
-                            else histEntry.playerKills++;
+                            
+                            if (isBot) {
+                                histEntry.botKills++;
+                                histEntry.botVictims.push(victimName);
+                            } else {
+                                histEntry.playerKills++;
+                                histEntry.playerVictims.push(victimName);
+                            }
                         }
                     }
                 });
@@ -717,12 +727,15 @@ function renderHallOfFame(data) {
                 teammatesHtml = '<span style="color: #666; font-size: 10px;">-</span>';
             }
 
+            const playerVictimsJson = JSON.stringify(h.playerVictims || []).replace(/"/g, '&quot;');
+            const botVictimsJson    = JSON.stringify(h.botVictims    || []).replace(/"/g, '&quot;');
+
             return `
             <tr style="border-bottom: 1px solid #222;">
                 <td style="color: #888; font-size: 11px; padding: 4px 0;">${timeStr}</td>
                 <td style="color: #fff;">${h.kills}</td>
-                <td style="color: ${h.playerKills !== null ? '#22c55e' : '#444'}; font-weight: ${h.playerKills !== null ? '700' : '400'}; font-size: 12px;">${h.playerKills !== null ? h.playerKills : '—'}</td>
-                <td style="color: ${h.botKills !== null ? '#ef4444' : '#444'}; font-weight: ${h.botKills !== null ? '700' : '400'}; font-size: 12px;">${h.botKills !== null ? h.botKills : '—'}</td>
+                <td onmouseenter="openKillsModal('👤 Players', ${playerVictimsJson}, 'player', this)" onmouseleave="closeKillsModal()" style="color: ${h.playerKills !== null ? '#22c55e' : '#444'}; font-weight: ${h.playerKills !== null ? '700' : '400'}; font-size: 12px; cursor: default; user-select: none;">${h.playerKills !== null ? h.playerKills : '—'}</td>
+                <td onmouseenter="openKillsModal('🤖 Bots', ${botVictimsJson}, 'bot', this)" onmouseleave="closeKillsModal()" style="color: ${h.botKills !== null ? '#ef4444' : '#444'}; font-weight: ${h.botKills !== null ? '700' : '400'}; font-size: 12px; cursor: default; user-select: none;">${h.botKills !== null ? h.botKills : '—'}</td>
                 <td style="color: #ccc;">${h.headshots}</td>
                 <td style="color: #aaa;">${h.damage}</td>
                 <td style="color: #aaa;">${h.assists}</td>
@@ -940,6 +953,68 @@ window.togglePlayerHistory = togglePlayerHistory;
 window.toggleVersus = toggleVersus;
 window.toggleVersusAll = toggleVersusAll;
 window.loadPlayerData = loadPlayerData;
+
+// ── Kills Hover Popover ──
+let _killsTimer = null;
+
+function openKillsModal(title, names, type, el) {
+    clearTimeout(_killsTimer);
+    if (!names || names.length === 0) return;
+
+    const overlay = document.getElementById('killsModal');
+    const titleEl = document.getElementById('killsModalTitle');
+    const bodyEl  = document.getElementById('killsModalBody');
+    if (!overlay) return;
+
+    // Position near the hovered element
+    const rect = el.getBoundingClientRect();
+    const popW = 260;
+    let left = rect.left + rect.width / 2 - popW / 2;
+    let top  = rect.bottom + 6;
+    left = Math.max(8, Math.min(left, window.innerWidth - popW - 8));
+    if (top + 310 > window.innerHeight) top = rect.top - 310;
+    overlay.style.left = left + 'px';
+    overlay.style.top  = top  + 'px';
+
+    // Title
+    titleEl.textContent = title;
+    titleEl.style.color = type === 'bot' ? '#ef4444' : '#22c55e';
+
+    // Count occurrences and sort by kills desc
+    const counts = {};
+    names.forEach(n => counts[n] = (counts[n] || 0) + 1);
+    const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+    const icon = type === 'bot' ? '🤖' : '🎯';
+    bodyEl.innerHTML = sorted.map(([n, c]) =>
+        `<div class="kill-entry">
+            <span class="kill-icon">${icon}</span>
+            <span class="kill-name">${n}</span>
+            ${c > 1 ? `<span class="kill-count">×${c}</span>` : ''}
+        </div>`
+    ).join('');
+
+    overlay.classList.add('active');
+}
+
+function closeKillsModal(delay = 140) {
+    if (delay === 0) {
+        document.getElementById('killsModal')?.classList.remove('active');
+        return;
+    }
+    _killsTimer = setTimeout(() => {
+        document.getElementById('killsModal')?.classList.remove('active');
+    }, delay);
+}
+
+function keepKillsModalOpen() {
+    clearTimeout(_killsTimer);
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeKillsModal(0); });
+
+window.openKillsModal    = openKillsModal;
+window.closeKillsModal   = closeKillsModal;
+window.keepKillsModalOpen = keepKillsModalOpen;
 
 
 

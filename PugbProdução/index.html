@@ -114,6 +114,17 @@
     </footer>
 </div>
 
+<!-- Kills Detail Modal (hover popover) -->
+<div id="killsModal" class="kills-modal-overlay" onmouseenter="keepKillsModalOpen()" onmouseleave="closeKillsModal()">
+    <div class="kills-modal">
+        <div class="kills-modal-header">
+            <span id="killsModalTitle"></span>
+            <button class="kills-modal-close" onclick="closeKillsModal(0)">✕</button>
+        </div>
+        <div id="killsModalBody" class="kills-modal-body"></div>
+    </div>
+</div>
+
 <!-- Scripts -->
 <script type="module" src="app.js"></script>
 
