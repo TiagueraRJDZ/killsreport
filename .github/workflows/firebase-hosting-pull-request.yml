@@ -1,0 +1,51 @@
+# Este arquivo foi auto-gerado pelo Firebase CLI e ajustado para incluir instalação e build.
+# https://github.com/firebase/firebase-tools
+
+name: Deploy para Firebase Hosting no PR
+on: pull_request
+
+permissions:
+  checks: write
+  contents: read
+  pull-requests: write
+
+jobs:
+  build_and_preview:
+    # Só roda em PRs do mesmo repositório (não roda em forks, por segurança com secrets)
+    if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+
+    # Opcional: já adianta a migração quando a GitHub forçar Node 24 em actions JS
+    # Se algum action não estiver pronto, remova esta linha.
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+    steps:
+      - name: Checkout do repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Instalar dependências (npm ci)
+        run: npm ci
+
+      # Se seu projeto tiver build (ex: Vite/React/Angular), descomente:
+      # - name: Build do projeto
+      #   run: npm run build
+
+      - name: Cache do Firebase Tools
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/firebase
+          key: ${{ runner.os }}-firebase-tools
+
+      - name: Deploy preview no Firebase Hosting
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_PUGB_EGOTEAM }}
+          projectId: pugb-egoteam

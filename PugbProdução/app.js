@@ -3,24 +3,29 @@
  * Optimized for performance and Daily Stats aggregation
  */
 
+// Firebase Integration
+import { initializeApp } from "firebase/app";
+import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyA_aDw11Cx-Shs4jZ4LcWGO5Ou9iDnGdzw",
+  authDomain: "pugb-egoteam.firebaseapp.com",
+  projectId: "pugb-egoteam",
+  storageBucket: "pugb-egoteam.firebasestorage.app",
+  messagingSenderId: "191418899183",
+  appId: "1:191418899183:web:833ad403d0f07bd2e5991a"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+
 const API_KEY = "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJqdGkiOiJmNTQyODZmMC1iM2U0LTAxMzctYjg4MC01ZmJlZDQ2ZWVjMzkiLCJpc3MiOiJnYW1lbG9ja2VyIiwiaWF0IjoxNTY3ODkxOTY2LCJwdWIiOiJibHVlaG9sZSIsInRpdGxlIjoicHViZyIsImFwcCI6ImVyaWNrbWRzOC1nbWFpIn0.1aRSRA6OKyUVRKG-CuwuU8vPblihryupGCfAEW9w1z8";
 const SHARD = "steam";
 const BASE_URL = "https://api.pubg.com/shards/";
 
-const mapMeta = {
-  erangel_main: { name: "Erangel", img: "Erangel.png" },
-  baltic_main: { name: "Erangel (Remastered)", img: "Erangel.png" },
-  desert_main: { name: "Miramar", img: "Miramar.png" },
-  savage_main: { name: "Sanhok", img: "Sanhok.png" },
-  dihorotok_main: { name: "Vikendi", img: "Vikendi.png" },
-  summerland_main: { name: "Karakin", img: "Karakin.jpg" },
-  chimera_main: { name: "Paramo", img: "Paramo.png" },
-  range_main: { name: "Camp Jackal", img: "Camp_Jackal.png" },
-  kiki_main: { name: "Deston", img: "Deston.png" },
-  tiger_main: { name: "Taego", img: "Taego.png" },
-  neon_main: { name: "Rondo", img: "Rondo.png" },
-  heaven_main: { name: "Haven", img: "Haven.png" }
-};
 
 const ID_NAMES = {
   "AIPawn_Base_Female_C": "Bot",
@@ -109,17 +114,12 @@ const ID_NAMES = {
 const FRIENDS = ["TIAGUERArjdz", "Alis00n", "M4LW4RE-", "LillWhind", "DeLLano_", "VZN-exe", "chicoTUF"];
 
 let chartInstance = null;
+let currentAggregatedData = {}; // Global store for click-to-update dashboard
 
 // Initialization
 document.addEventListener('DOMContentLoaded', () => {
     const searchBtn = document.getElementById('searchBtn');
     const playerInput = document.getElementById('playerInput');
-    const dateFilter = document.getElementById('dateFilter');
-
-    // Default to today
-    const today = new Date().toISOString().split("T")[0];
-    dateFilter.value = today;
-
     searchBtn.addEventListener('click', () => loadPlayerData(playerInput.value));
 });
 
@@ -188,13 +188,12 @@ async function loadPlayerData(nickname) {
 }
 
 async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
-    const selectedDate = document.getElementById("dateFilter").value;
     const statsLabel = document.getElementById("statsTypeLabel");
-    const loadingStatus = document.getElementById("loadingStatus");
-    
+    const loaderText = document.getElementById("loaderText");
     // Update labels immediately
-    statsLabel.innerText = `(${selectedDate.split('-').reverse().slice(0,2).join('/')})`;
-    loadingStatus.style.display = "block";
+    statsLabel.innerText = `(${officialName})`;
+    if (loaderText) loaderText.innerText = `Carregando Relatório do Nub ${officialName}`;
+    document.getElementById("pageLoader").classList.add("active");
 
     // Daily Stats Accumulators
     let totalKills = 0;
@@ -205,7 +204,6 @@ async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
     let matchCount = 0;
 
     const weapons = {};
-    const maps = {};
     const kdHistory = [];
 
     // FIX: Fetch match details in chunks to avoid API rate limits (429 Too Many Requests)
@@ -269,7 +267,7 @@ async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
             friendsInMatch.forEach(p => {
                 const name = p.attributes.stats.name;
                 if (!hallOfFameAggr[name]) {
-                    hallOfFameAggr[name] = { kills: 0, damage: 0, assists: 0, neymar: 0, time: 0, matches: 0, headshots: 0, deaths: 0, history: [] };
+                    hallOfFameAggr[name] = { kills: 0, damage: 0, assists: 0, neymar: 0, time: 0, matches: 0, headshots: 0, deaths: 0, wins: 0, history: [] };
                 }
                 // Only count the last 20 matches PER PLAYER
                 if (hallOfFameAggr[name].matches < 20) {
@@ -284,10 +282,29 @@ async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
                     if (myRoster) {
                         const participantIds = myRoster.relationships.participants.data.map(d => d.id);
                         const rosterParticipants = allParticipantsList.filter(inc => participantIds.includes(inc.id));
-                        const allTeammates = rosterParticipants.map(rp => rp.attributes.stats.name).filter(n => n !== name);
                         
-                        friendsTeammates = allTeammates.filter(t => FRIENDS.includes(t));
-                        randomTeammates = allTeammates.filter(t => !FRIENDS.includes(t));
+                        // Collect Friend Teammates with Stats
+                        friendsTeammates = rosterParticipants
+                            .filter(rp => rp.attributes.stats.name !== name && FRIENDS.includes(rp.attributes.stats.name))
+                            .map(rp => ({
+                                name: rp.attributes.stats.name,
+                                kills: rp.attributes.stats.kills,
+                                damage: Math.round(rp.attributes.stats.damageDealt),
+                                assists: rp.attributes.stats.assists,
+                                neymar: rp.attributes.stats.DBNOs,
+                                headshots: rp.attributes.stats.headshotKills || 0
+                            }));
+
+                        randomTeammates = rosterParticipants
+                            .filter(rp => rp.attributes.stats.name !== name && !FRIENDS.includes(rp.attributes.stats.name))
+                            .map(rp => ({
+                                name: rp.attributes.stats.name,
+                                kills: rp.attributes.stats.kills,
+                                damage: Math.round(rp.attributes.stats.damageDealt),
+                                assists: rp.attributes.stats.assists,
+                                neymar: rp.attributes.stats.DBNOs,
+                                headshots: rp.attributes.stats.headshotKills || 0
+                            }));
                     }
 
                     hallOfFameAggr[name].kills += p.attributes.stats.kills;
@@ -299,6 +316,7 @@ async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
                     
                     const died = (p.attributes.stats.winPlace === 1 || p.attributes.stats.winPlace === "1") ? 0 : 1;
                     hallOfFameAggr[name].deaths += died;
+                    if (died === 0) hallOfFameAggr[name].wins++;
                     
                     hallOfFameAggr[name].matches++;
                     
@@ -318,8 +336,8 @@ async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
             });
         }
 
-        // --- TEAM COMPETITION LOGIC (Shared matches only, for the selected date) ---
-        if (createdAt === selectedDate && friendsInMatch.length > 1) {
+            // --- TEAM COMPETITION LOGIC (Shared matches only) ---
+            if (friendsInMatch.length > 1) {
             const teamStats = friendsInMatch.map(p => ({
                 name: p.attributes.stats.name,
                 kills: p.attributes.stats.kills,
@@ -336,12 +354,8 @@ async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
             });
         }
 
-        // Filter by date for main global stats
-        if (createdAt !== selectedDate) continue;
-        
+        // No date filter - process all found matches
         matchCount++;
-        const mapName = matchData.attributes.mapName;
-        maps[mapName] = (maps[mapName] || 0) + 1;
 
         // --- FIX: CALCULO DE VITÓRIAS ---
         const participant = m.included?.find(inc => 
@@ -418,26 +432,36 @@ async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
         }
     }
 
-    loadingStatus.style.display = "none";
-    renderTeamStats(teamHistory);
+    document.getElementById("pageLoader").classList.remove("active");
+    currentAggregatedData = hallOfFameAggr; // Save for clicking
     renderHallOfFame(hallOfFameAggr);
 
-    // 3. Final Calculation
-    const kd = totalDeaths ? (totalKills / totalDeaths).toFixed(2) : totalKills;
-    const hs = totalKills ? ((headshots / totalKills) * 100).toFixed(1) : "0.0";
-    const avgDmg = matchCount ? (totalDamage / matchCount).toFixed(0) : 0;
+    // Default dashboard to searched player
+    if (hallOfFameAggr[officialName]) {
+        updateDashboard(officialName);
+    }
 
-    // Update UI
-    updateText('killsVal', totalKills);
+    // Removed redundant direct updates, now using updateDashboard
+    renderWeapons(weapons);
+    renderProgressionChart(kdHistory.reverse().slice(0, 10)); // Last 10 matches of that day
+}
+
+function updateDashboard(playerName) {
+    const stats = currentAggregatedData[playerName];
+    if (!stats) return;
+
+    const kd = stats.deaths ? (stats.kills / stats.deaths).toFixed(2) : stats.kills;
+    const hs = stats.kills ? ((stats.headshots / stats.kills) * 100).toFixed(1) : "0.0";
+    const avgDmg = stats.matches ? (stats.damage / stats.matches).toFixed(0) : 0;
+
+    updateText('killsVal', stats.kills);
     updateText('kdVal', kd);
-    updateText('winsVal', totalWins); 
-    updateText('matchesVal', matchCount);
+    updateText('winsVal', stats.wins); 
+    updateText('matchesVal', stats.matches);
     updateText('damageVal', avgDmg);
     updateText('hsVal', hs + "%");
-
-    renderWeapons(weapons);
-    renderMaps(maps);
-    renderProgressionChart(kdHistory.reverse().slice(0, 10)); // Last 10 matches of that day
+    
+    document.getElementById("statsTypeLabel").innerText = `(${playerName})`;
 }
 
 function renderWeapons(data) {
@@ -471,32 +495,6 @@ function renderWeapons(data) {
             </div>
         </div>
     `}).join('');
-}
-
-function renderMaps(data) {
-    const container = document.getElementById("mapsGrid");
-    const entries = Object.entries(data);
-    
-    if (entries.length === 0) {
-        container.innerHTML = `<p style="color: grey; font-size: 14px; grid-column: 1/-1; text-align: center;">Sem atividade no mapa para esta data.</p>`;
-        return;
-    }
-
-    container.innerHTML = entries.map(([id, count]) => {
-        // FIX: Case-insensitive map lookup
-        const info = mapMeta[id] || mapMeta[id.toLowerCase()] || { name: id, img: 'Camp_Jackal.png' }; 
-        const imgUrl = `https://raw.githubusercontent.com/pubg/api-assets/master/Assets/MapSelection/${info.img}`;
-        
-        return `
-            <div class="map-card">
-                <img src="${imgUrl}">
-                <div class="map-overlay">
-                    <span class="map-name">${info.name}</span>
-                    <span class="map-stats">${count} Partidas</span>
-                </div>
-            </div>
-        `;
-    }).join('');
 }
 
 function renderProgressionChart(data) {
@@ -556,8 +554,6 @@ function setLoading(isLoading) {
 function resetStats() {
     ['killsVal', 'kdVal', 'winsVal', 'matchesVal', 'damageVal', 'hsVal'].forEach(id => updateText(id, "-"));
     document.getElementById("weaponsGrid").innerHTML = "";
-    document.getElementById("mapsGrid").innerHTML = "";
-    document.getElementById("teamStatsSection").style.display = "none";
     document.getElementById("hallOfFameSection").style.display = "none";
 }
 
@@ -604,6 +600,7 @@ function renderHallOfFame(data) {
 
         const kd = (stats.kills / Math.max(1, stats.deaths)).toFixed(2);
         const hsRate = stats.kills > 0 ? Math.round((stats.headshots / stats.kills) * 100) : 0;
+        const safeId = name.replace(/[^a-zA-Z0-9]/g, '');
 
         const historyRows = (stats.history || []).map(h => {
             let timeStr = "";
@@ -635,21 +632,53 @@ function renderHallOfFame(data) {
             }
             
             let teammatesHtml = '';
+            const matchRowId = `match-${safeId}-${(Math.random()*10000).toFixed(0)}`;
+            
+            // Ego Team Section
+            let egoHtml = '';
             if (h.friendsTeammates && h.friendsTeammates.length > 0) {
-                teammatesHtml += `<span style="color: #ffd700; margin-right: 5px; font-weight: bold; font-size: 10px;">Ego Team:</span>` + 
-                    h.friendsTeammates.map(t => `<span style="background: #333; padding: 2px 6px; border-radius: 4px; margin-right: 4px; font-size: 10px;">${t}</span>`).join('');
+                egoHtml = `<div style="display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-bottom: 8px;">
+                    <span style="color: #ffd700; font-weight: 800; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; min-width: 65px;">Ego Team:</span>` +
+                    h.friendsTeammates.map(t => {
+                        const myStats = JSON.stringify({ name: name, kills: h.kills, damage: h.damage, assists: h.assists, headshots: h.headshots, neymar: h.neymar }).replace(/"/g, '&quot;');
+                        const friendStats = JSON.stringify(t).replace(/"/g, '&quot;');
+                        return `<span onclick="toggleVersus('${matchRowId}', ${myStats}, ${friendStats}); event.stopPropagation();" 
+                             style="background: rgba(255,215,0,0.1); border: 1px solid rgba(255,215,0,0.4); padding: 3px 8px; border-radius: 4px; font-size: 10px; color: #ffd700; font-weight: 700; cursor: pointer; transition: all 0.2s;"
+                             class="teammate-badge" title="Clique para Versus">
+                            ${t.name}
+                        </span>`;
+                    }).join('') +
+                    // TODOS Button
+                    `<span onclick="toggleVersusAll('${matchRowId}', ${JSON.stringify({ name: name, kills: h.kills, damage: h.damage, assists: h.assists, headshots: h.headshots, neymar: h.neymar }).replace(/"/g, '&quot;')}, ${JSON.stringify([...h.friendsTeammates, ...h.randomTeammates]).replace(/"/g, '&quot;')}); event.stopPropagation();" 
+                        style="background: #ffd700; color: #111; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 900; cursor: pointer; margin-left: auto; box-shadow: 0 4px 10px rgba(0,0,0,0.3);">
+                        TODOS
+                    </span>
+                </div>`;
             }
+
+            // Aleatórios Section
+            let randomHtml = '';
             if (h.randomTeammates && h.randomTeammates.length > 0) {
-                if (teammatesHtml !== '') teammatesHtml += '<br style="margin-bottom: 2px;">';
-                teammatesHtml += `<span style="color: #888; margin-right: 5px; font-size: 10px;">Aleatórios:</span>` + 
-                    h.randomTeammates.map(t => `<span style="background: #222; border: 1px solid #444; color: #888; padding: 2px 6px; border-radius: 4px; margin-right: 4px; font-size: 10px;">${t}</span>`).join('');
+                randomHtml = `<div style="display: flex; align-items: center; flex-wrap: wrap; gap: 6px;">
+                    <span style="color: #64748b; font-weight: 800; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; min-width: 65px;">Aleatórios:</span>` +
+                    h.randomTeammates.map(t => {
+                        const myStats = JSON.stringify({ name: name, kills: h.kills, damage: h.damage, assists: h.assists, headshots: h.headshots, neymar: h.neymar }).replace(/"/g, '&quot;');
+                        const friendStats = JSON.stringify(t).replace(/"/g, '&quot;');
+                        return `<span onclick="toggleVersus('${matchRowId}', ${myStats}, ${friendStats}); event.stopPropagation();" 
+                             style="background: rgba(100,116,139,0.1); border: 1px solid rgba(100,116,139,0.3); padding: 3px 8px; border-radius: 4px; font-size: 10px; color: #94a3b8; cursor: pointer; transition: all 0.2s;"
+                             class="teammate-badge" title="Clique para Versus">
+                            ${t.name}
+                        </span>`;
+                    }).join('') + `</div>`;
             }
+
+            teammatesHtml = `<div style="padding: 5px 0; min-width: 300px;">${egoHtml}${randomHtml}</div>`;
             if (!teammatesHtml) {
                 teammatesHtml = '<span style="color: #666; font-size: 10px;">-</span>';
             }
 
             return `
-            <tr>
+            <tr style="border-bottom: 1px solid #222;">
                 <td style="color: #888; font-size: 11px; padding: 4px 0;">${timeStr}</td>
                 <td style="color: #fff;">${h.kills}</td>
                 <td style="color: #ccc;">${h.headshots}</td>
@@ -659,13 +688,20 @@ function renderHallOfFame(data) {
                 <td style="text-align: center;" title="${h.mode}">${modeIcon}</td>
                 <td>${teammatesHtml}</td>
             </tr>
+            <tr id="${matchRowId}" class="comparison-row" style="display: none; background: #0c0c0c;">
+                <td colspan="8" style="padding: 10px;">
+                    <!-- Versus injection point -->
+                </td>
+            </tr>
         `;
         }).join('');
 
-        const safeId = name.replace(/[^a-zA-Z0-9]/g, '');
+        const isSearched = (name.toLowerCase() === document.getElementById('playerInput').value.toLowerCase());
 
         return `
-            <tr class="${isMior ? 'rank-top' : ''}" style="cursor: pointer;" onclick="document.getElementById('history-${safeId}').style.display = document.getElementById('history-${safeId}').style.display === 'none' ? 'table-row' : 'none'">
+            <tr class="${isMior ? 'rank-top' : ''}" 
+                style="cursor: pointer; ${isSearched ? 'background: rgba(247, 181, 0, 0.1); border-left: 4px solid var(--primary);' : ''}" 
+                onclick="togglePlayerHistory('${safeId}', '${name.replace(/'/g, "\\'")}');">
                 <td class="rank-number">#${index + 1}</td>
                 <td>
                     <span class="player-name">${name}</span>
@@ -678,7 +714,7 @@ function renderHallOfFame(data) {
                 <td><span style="color: #999;">Partidas:</span> ${stats.matches}</td>
                 <td style="font-size: 11px; text-align: right;">${timeH}h ${timeM}m vivo</td>
             </tr>
-            <tr id="history-${safeId}" style="display: none; background: #1a1a1a;">
+            <tr id="history-${safeId}" class="player-history-row" style="display: none; background: #1a1a1a;">
                 <td colspan="8" style="padding: 15px; border-radius: 8px;">
                     <div style="display: flex; justify-content: space-between; margin-bottom: 10px; border-bottom: 1px solid #333; padding-bottom: 5px;">
                         <span style="color: #ffd700; font-weight: bold; font-size: 13px;">DETALHES DAS ${stats.matches} PARTIDAS:</span>
@@ -718,111 +754,148 @@ function renderHallOfFame(data) {
     `;
 }
 
-function renderTeamStats(history) {
-    const section = document.getElementById("teamStatsSection");
-    const container = document.getElementById("teamStatsContainer");
+function togglePlayerHistory(safeId, playerName) {
+    const historyRow = document.getElementById(`history-${safeId}`);
+    if (!historyRow) return;
+
+    const isAlreadyOpen = historyRow.style.display === 'table-row';
+
+    // Close all other player histories
+    document.querySelectorAll('.player-history-row').forEach(row => {
+        row.style.display = 'none';
+    });
+
+    if (!isAlreadyOpen) {
+        historyRow.style.display = 'table-row';
+    }
     
-    if (history.length === 0) {
-        section.style.display = "none";
-        return;
+    // Always update dashboard stats at the top
+    updateDashboard(playerName);
+}
+
+function toggleVersus(containerId, me, friend) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    const isAlreadyOpen = container.style.display === 'table-row' && container.dataset.player === friend.name;
+
+    // First, close ALL comparison rows to keep it "unpolluted"
+    document.querySelectorAll('.comparison-row').forEach(row => {
+        row.style.display = 'none';
+        row.dataset.player = '';
+    });
+
+    if (isAlreadyOpen) {
+        return; // It's now hidden because of the loop above
     }
 
-    section.style.display = "block";
-    container.innerHTML = history.map(match => {
-        // Localization and Time logic
-        const mDate = new Date(match.fullDate);
-        const dayMonth = mDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-        const timeStr = mDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-        
-        // Relative time
-        const diffMs = new Date() - mDate;
-        const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-        const relativeTime = diffHours < 1 ? 'Agora pouco' : `${diffHours}h atrás`;
+    container.dataset.player = friend.name;
+    container.style.display = 'table-row';
 
-        // Game Mode Logic (Icons & Colors)
-        const isFPP = (match.mode || "").includes('fpp');
-        const modeBase = (match.mode || "").replace('-fpp', '').replace('-tpp', '').toLowerCase();
-        
-        const svgIcon = `<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="6" r="4"/><path d="M20 17.5c0-2.485-3.582-4.5-8-4.5s-8 2.015-8 4.5V21h16v-3.5z"/></svg>`;
-        
-        let modeIconHtml = '';
-        let modeBg = '#5d5dbd'; // Squad Purple
-        
-        if (modeBase === 'duo') {
-            modeIconHtml = `<div style="display:flex; gap: -2px;">${svgIcon}${svgIcon}</div>`;
-            modeBg = '#459ba2'; // Adjusted Duo Teal
-        } else if (modeBase === 'solo') {
-            modeIconHtml = svgIcon;
-            modeBg = '#7f8c8d'; // Solo Grey
-        } else {
-            modeIconHtml = `<div style="display:flex; gap: -4px;">${svgIcon}${svgIcon}${svgIcon}${svgIcon}</div>`;
-            modeBg = '#5d5dbd'; // Squad Purple
-        }
+    const getWinnerClass = (v1, v2) => {
+        if (v1 > v2) return 'color: var(--primary); font-weight: 800; text-shadow: 0 0 10px var(--primary-glow);';
+        if (v1 < v2) return 'color: #555;';
+        return 'color: #fff;';
+    };
 
-        // Calculate Totals
-        const totalKills = match.stats.reduce((s, p) => s + p.kills, 0);
-        const totalDamage = match.stats.reduce((s, p) => s + p.damage, 0);
-        const totalAssists = match.stats.reduce((s, p) => s + p.assists, 0);
-        const totalNeymar = match.stats.reduce((s, p) => s + p.neymar, 0);
+    const row = (label, v1, v2) => `
+        <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.03);">
+            <div style="flex: 1; text-align: right; ${getWinnerClass(v1, v2)}">${v1}</div>
+            <div style="width: 120px; text-align: center; color: #666; font-size: 10px; text-transform: uppercase; font-weight: 700; letter-spacing: 1px;">${label}</div>
+            <div style="flex: 1; text-align: left; ${getWinnerClass(v2, v1)}">${v2}</div>
+        </div>
+    `;
 
-        const rows = match.stats.sort((a,b) => b.kills - a.kills || b.damage - a.damage).map(p => {
-            const timeMin = Math.floor(p.time / 60);
-            const timeSec = p.time % 60;
-            const scoreNum = (p.kills * 2 + p.assists + p.neymar/2 + p.damage/100);
-            let scoreClass = 'score-b';
-            let scoreLetter = 'B';
-            if (scoreNum > 15) { scoreClass = 'score-s'; scoreLetter = 'S'; }
-            else if (scoreNum > 8) { scoreClass = 'score-a'; scoreLetter = 'A'; }
-
-            return `
-                <tr>
-                    <td class="player-name">${p.name}</td>
-                    <td class="highlight-stat">${p.kills}</td>
-                    <td><span class="damage-bar ${p.damage > 500 ? 'damage-red' : 'damage-grey'}" style="width: ${Math.min(p.damage/10, 100)}px"></span>${p.damage}</td>
-                    <td class="${p.assists >= 3 ? 'highlight-stat' : ''}">${p.assists}</td>
-                    <td>${p.neymar}</td>
-                    <td>${timeMin}:${timeSec.toString().padStart(2, '0')}</td>
-                    <td class="${scoreClass}">${scoreLetter}</td>
-                </tr>
-            `;
-        }).join('');
-
-        return `
-            <div class="team-summary-header">
-                <div style="display: flex; align-items: center; gap: 15px;">
-                    <div style="background: ${modeBg}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 800; display: flex; align-items: center; gap: 4px;">
-                        <span style="font-size: 10px; opacity: 0.9;">${modeIconHtml}</span>
-                        <span style="border-left: 1px solid rgba(255,255,255,0.2); padding-left: 4px;">${isFPP ? 'FPP' : 'TPP'}</span>
-                    </div>
-                    <div style="color: #999; font-size: 12px; border-left: 1px solid #444; padding-left: 10px;">${relativeTime}</div>
-                    <div style="font-weight: 700; color: #fff;">Partida em ${dayMonth}</div>
-                    <div style="color: #999; font-size: 12px;">${timeStr}</div>
+    container.innerHTML = `
+        <td colspan="8" style="padding: 15px 30px;">
+            <div style="background: linear-gradient(180deg, rgba(20,20,20,0.8), rgba(10,10,10,0.8)); border: 1px solid var(--glass-border); border-radius: 12px; padding: 20px; box-shadow: inset 0 0 20px rgba(0,0,0,0.5);">
+                <!-- Header Names -->
+                <div style="display: flex; justify-content: space-between; margin-bottom: 15px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;">
+                    <div style="flex: 1; text-align: right; font-weight: 700; color: #fff; font-size: 14px;">${me.name}</div>
+                    <div style="width: 120px; text-align: center; color: var(--primary); font-weight: 900; font-style: italic;">VERSUS</div>
+                    <div style="flex: 1; text-align: left; font-weight: 700; color: #fff; font-size: 14px;">${friend.name}</div>
+                </div>
+                
+                <!-- Main Stats -->
+                ${row('Kills', me.kills, friend.kills)}
+                ${row('Dano Causado', me.damage, friend.damage)}
+                ${row('Assistências', me.assists, friend.assists)}
+                ${row('Headshots', me.headshots, friend.headshots)}
+                ${row('Neymar (DBNO)', me.neymar, friend.neymar)}
+                
+                <div style="text-align: center; margin-top: 15px; font-size: 10px; color: #444;">
+                    * O jogador em <span style="color: var(--primary);">dourado</span> teve a melhor performance na categoria
                 </div>
             </div>
-            <table class="team-table">
-                <thead>
-                    <tr>
-                        <th>Jogador</th>
-                        <th>Kills</th>
-                        <th>Dano</th>
-                        <th>Assist.</th>
-                        <th>Neymar</th>
-                        <th>Tempo</th>
-                        <th>Score</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${rows}
-                    <tr style="background: rgba(255,255,255,0.05); font-weight: 700;">
-                        <td>Total</td>
-                        <td>${totalKills}</td>
-                        <td>${totalDamage}</td>
-                        <td>${totalAssists}</td>
-                        <td>${totalNeymar}</td>
-                        <td colspan="2"></td>
-                    </tr>
-                </tbody>
-            </table>
-        `;
-    }).join('<div style="margin-bottom: 30px;"></div>');
+        </td>
+    `;
 }
+
+function toggleVersusAll(containerId, me, teammates) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    const isAlreadyOpen = container.style.display === 'table-row' && container.dataset.player === 'ALL';
+
+    // First, close ALL comparison rows to keep it "unpolluted"
+    document.querySelectorAll('.comparison-row').forEach(row => {
+        row.style.display = 'none';
+        row.dataset.player = '';
+    });
+
+    if (isAlreadyOpen) {
+        return; // It's now hidden because of the loop above
+    }
+
+    container.dataset.player = 'ALL';
+    container.style.display = 'table-row';
+
+    const allPlayers = [me, ...teammates];
+    
+    // Header for the table
+    let headerHtml = `<th style="text-align: left; padding: 12px 8px; color: #666; font-size: 10px; width: 150px;">JOGADOR</th>`;
+    headerHtml += `<th style="text-align: center; color: var(--primary); font-size: 10px; width: 80px;">KILLS</th>`;
+    headerHtml += `<th style="text-align: center; color: var(--primary); font-size: 10px; width: 80px;">DANO</th>`;
+    headerHtml += `<th style="text-align: center; color: #888; font-size: 10px; width: 80px;">ASST</th>`;
+    headerHtml += `<th style="text-align: center; color: #888; font-size: 10px; width: 80px;">HS</th>`;
+    headerHtml += `<th style="text-align: center; color: #888; font-size: 10px; width: 80px;">NEYMAR</th>`;
+
+    const rowsHtml = allPlayers.map(p => `
+        <tr style="border-bottom: 1px solid rgba(255,255,255,0.03);">
+            <td style="padding: 12px 8px; font-weight: 700; color: ${p.name === me.name ? 'var(--primary)' : '#fff'}; font-size: 12px; text-align: left;">${p.name}</td>
+            <td style="text-align: center; font-weight: 800; font-size: 14px; color: #fff;">${p.kills}</td>
+            <td style="text-align: center; color: #aaa;">${p.damage}</td>
+            <td style="text-align: center; color: #888;">${p.assists}</td>
+            <td style="text-align: center; color: #888;">${p.headshots}</td>
+            <td style="text-align: center; color: #888;">${p.neymar}</td>
+        </tr>
+    `).join('');
+
+    container.innerHTML = `
+        <td colspan="8" style="padding: 15px 30px;">
+            <div style="background: linear-gradient(180deg, rgba(20,20,20,0.8), rgba(10,10,10,0.8)); border: 1px solid var(--glass-border); border-radius: 12px; padding: 20px; box-shadow: inset 0 0 20px rgba(0,0,0,0.5);">
+                <div style="color: var(--primary); font-weight: 900; font-style: italic; margin-bottom: 15px; text-align: center; font-size: 12px; letter-spacing: 2px;">COMPARATIVO DE EQUIPE (VERSUS ALL)</div>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="border-bottom: 1px solid #333;">${headerHtml}</tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHtml}
+                    </tbody>
+                </table>
+                <div style="text-align: center; margin-top: 15px; font-size: 10px; color: #444;">
+                    * Resumo de performance de todos os membros da Ego Team na partida
+                </div>
+            </div>
+        </td>
+    `;
+}
+
+// Export functions to global scope for HTML event handlers
+window.togglePlayerHistory = togglePlayerHistory;
+window.toggleVersus = toggleVersus;
+window.toggleVersusAll = toggleVersusAll;
+window.loadPlayerData = loadPlayerData;
+
+
+

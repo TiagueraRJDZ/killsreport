@@ -8,9 +8,27 @@
     
     <!-- External Dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Firebase SDK (Modular) -->
+    <script type="importmap">
+    {
+      "imports": {
+        "firebase/app": "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js",
+        "firebase/firestore": "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js",
+        "firebase/auth": "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js"
+      }
+    }
+    </script>
+    
     <link rel="stylesheet" href="index.css">
 </head>
-<body>
+<!-- Loading Overlay -->
+<div id="pageLoader" class="loading-overlay">
+    <div class="loader-content">
+        <div class="premium-spinner"></div>
+        <div id="loaderText" class="loading-text">Carregando relatórios dos Nubs</div>
+    </div>
+</div>
 
 <div class="container">
     <!-- Header with Search -->
@@ -18,10 +36,7 @@
         <div class="logo">Ego Team <span style="font-size: 18px; font-weight: 400; opacity: 0.7; margin-left: 5px;">Tracker</span></div>
         
         <div class="search-box">
-            <div class="search-field date-field">
-                <label for="dateFilter">Data:</label>
-                <input type="date" id="dateFilter">
-            </div>
+
             <div class="search-field player-field">
                 <input type="text" id="playerInput" placeholder="Pesquise seu ID">
             </div>
@@ -33,7 +48,6 @@
     <section class="card stats-overview">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
             <h2 style="margin: 0;">📊 Estatísticas <span id="statsTypeLabel">(Hoje)</span></h2>
-            <div id="loadingStatus" style="font-size: 12px; color: var(--primary); display: none;">Calculando telemetria...</div>
         </div>
         <div class="stats-grid" id="globalStats">
             <div class="stat-item">
@@ -71,13 +85,7 @@
         </div>
     </section>
 
-    <!-- Competição Ego Team -->
-    <section class="card" id="teamStatsSection" style="display: none;">
-        <h2>👑 Competição Ego Team</h2>
-        <div id="teamStatsContainer" class="team-table-container">
-            <!-- Team table will be injected here -->
-        </div>
-    </section>
+
 
     <!-- Analysis Grid -->
     <div class="visual-grid">
@@ -99,13 +107,7 @@
         </section>
     </div>
 
-    <!-- Maps History -->
-    <section class="card">
-        <h2>🗺️ Domínio de Território</h2>
-        <div id="mapsGrid" class="grid-small">
-            <!-- Maps will be injected here -->
-        </div>
-    </section>
+    <!-- Footer Meta -->
 
     <!-- Footer Meta -->
     <footer style="text-align: center; color: var(--text-secondary); font-size: 12px; margin-top: 40px; border-top: 1px solid var(--glass-border); padding-top: 20px;">
@@ -114,7 +116,7 @@
 </div>
 
 <!-- Scripts -->
-<script src="app.js"></script>
+<script type="module" src="app.js"></script>
 
 </body>
 </html>
