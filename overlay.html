@@ -3,25 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PUBG Stats Overlay</title>
+    <title>PUBG Wins Overlay</title>
     <link rel="stylesheet" href="overlay.css">
 </head>
 <body>
 
-<div class="overlay-header">
-    <div class="player-info">
-        <span class="player-name" id="playerName">Caminhando...</span>
-        <span class="refresh-status" id="refreshTime">Carregando...</span>
+<div class="wins-container">
+    <div class="wins-badge">
+        <span class="wins-icon">🏆</span>
+        <span class="wins-label">VITÓRIAS HOJE</span>
+        <span class="wins-value" id="winsVal">0</span>
     </div>
-    <div class="today-summary">
-        <span class="summary-label">Últimas 10 Partidas</span>
-        <div style="font-size: 10px; color: var(--primary); font-weight: 700;">PUBG TRACKER PRO</div>
-    </div>
-</div>
-
-<div class="match-list" id="matchList">
-    <!-- Matches will be injected here -->
-    <div style="text-align: center; padding: 20px; color: #666;">Buscando telemetria...</div>
+    <div class="refresh-mini" id="refreshTime">...</div>
 </div>
 
 <script src="overlay.js"></script>
