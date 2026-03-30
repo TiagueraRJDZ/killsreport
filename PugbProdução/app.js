@@ -605,17 +605,18 @@ function renderHallOfFame(data) {
                 const hrs = String(d.getHours()).padStart(2, '0');
                 const mins = String(d.getMinutes()).padStart(2, '0');
                 
-                const winIcon = h.died === 0 ? '<span style="font-size: 16px; width: 24px; display: inline-flex; align-items: center; justify-content: center; filter: drop-shadow(0 0 5px rgba(247,181,0,0.3));">🥇</span>' : '<div style="width: 24px; display: inline-block;"></div>';
+                const winIcon = h.died === 0 ? '<span class="victory-medal">🥇</span>' : '<div style="width: 24px;"></div>';
                 timeStr = `<div style="display: flex; align-items: center; gap: 8px;">${winIcon}<div style="line-height: 1.2;">${day}/${month} ${hrs}:${mins} <span style="color:#555; display:block; font-size:10px;">${agoStr}</span></div></div>`;
             }
 
+            const userSvg = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" style="margin: 0 -3px; flex-shrink: 0;"><path d="M20 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>`;
             let modeIcon = '';
             if (h.mode && h.mode.includes('squad')) {
-                modeIcon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>`;
+                modeIcon = `<div style="display: flex; justify-content: center; align-items: center; min-width: 45px;">${userSvg}${userSvg}${userSvg}${userSvg}</div>`;
             } else if (h.mode && h.mode.includes('duo')) {
-                modeIcon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>`;
+                modeIcon = `<div style="display: flex; justify-content: center; align-items: center; min-width: 45px;">${userSvg}${userSvg}</div>`;
             } else {
-                modeIcon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>`;
+                modeIcon = `<div style="display: flex; justify-content: center; align-items: center; min-width: 45px;">${userSvg}</div>`;
             }
             
             let teammatesHtml = '';
