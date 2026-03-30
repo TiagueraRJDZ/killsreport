@@ -321,6 +321,7 @@ async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
                     hallOfFameAggr[name].matches++;
                     
                     hallOfFameAggr[name].history.push({
+                        matchId: matchData.id,
                         fullDate: matchData.attributes.createdAt,
                         mode: matchData.attributes.gameMode,
                         friendsTeammates: friendsTeammates,
@@ -330,7 +331,9 @@ async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
                         assists: p.attributes.stats.assists,
                         neymar: p.attributes.stats.DBNOs,
                         headshots: p.attributes.stats.headshotKills || 0,
-                        died: died
+                        died: died,
+                        botKills: null,
+                        playerKills: null
                     });
                 }
             });
@@ -397,6 +400,17 @@ async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
                         const weapon = kDI?.damageCauserName || e.damageCauserName || e.weapon?.itemId;
                         if (weapon) {
                             weapons[weapon] = (weapons[weapon] || 0) + 1;
+                        }
+
+                        // Classify kill: Bot or Player
+                        const victimCharName = e.victim?.character?.name || '';
+                        const isBot = victimCharName.toLowerCase().includes('aipawn');
+                        const histEntry = (hallOfFameAggr[officialName]?.history || []).find(h => h.matchId === task.matchId);
+                        if (histEntry) {
+                            if (histEntry.botKills === null) histEntry.botKills = 0;
+                            if (histEntry.playerKills === null) histEntry.playerKills = 0;
+                            if (isBot) histEntry.botKills++;
+                            else histEntry.playerKills++;
                         }
                     }
                 });
@@ -681,6 +695,8 @@ function renderHallOfFame(data) {
             <tr style="border-bottom: 1px solid #222;">
                 <td style="color: #888; font-size: 11px; padding: 4px 0;">${timeStr}</td>
                 <td style="color: #fff;">${h.kills}</td>
+                <td style="color: ${h.playerKills !== null ? '#22c55e' : '#444'}; font-weight: ${h.playerKills !== null ? '700' : '400'}; font-size: 12px;">${h.playerKills !== null ? h.playerKills : '—'}</td>
+                <td style="color: ${h.botKills !== null ? '#ef4444' : '#444'}; font-weight: ${h.botKills !== null ? '700' : '400'}; font-size: 12px;">${h.botKills !== null ? h.botKills : '—'}</td>
                 <td style="color: #ccc;">${h.headshots}</td>
                 <td style="color: #aaa;">${h.damage}</td>
                 <td style="color: #aaa;">${h.assists}</td>
@@ -689,7 +705,7 @@ function renderHallOfFame(data) {
                 <td>${teammatesHtml}</td>
             </tr>
             <tr id="${matchRowId}" class="comparison-row" style="display: none; background: #0c0c0c;">
-                <td colspan="8" style="padding: 10px;">
+                <td colspan="10" style="padding: 10px;">
                     <!-- Versus injection point -->
                 </td>
             </tr>
@@ -715,7 +731,7 @@ function renderHallOfFame(data) {
                 <td style="font-size: 11px; text-align: right;">${timeH}h ${timeM}m vivo</td>
             </tr>
             <tr id="history-${safeId}" class="player-history-row" style="display: none; background: #1a1a1a;">
-                <td colspan="8" style="padding: 15px; border-radius: 8px;">
+                <td colspan="10" style="padding: 15px; border-radius: 8px;">
                     <div style="display: flex; justify-content: space-between; margin-bottom: 10px; border-bottom: 1px solid #333; padding-bottom: 5px;">
                         <span style="color: #ffd700; font-weight: bold; font-size: 13px;">DETALHES DAS ${stats.matches} PARTIDAS:</span>
                         <div style="font-size: 13px;">
@@ -728,6 +744,8 @@ function renderHallOfFame(data) {
                             <tr style="color: #ffd700; border-bottom: 1px solid #333;">
                                 <th style="padding: 5px 0;">Data</th>
                                 <th>Kills</th>
+                                <th style="color: #22c55e;">👤 Players</th>
+                                <th style="color: #ef4444;">🤖 Bots</th>
                                 <th>Headshots</th>
                                 <th>Dano</th>
                                 <th>Assists</th>
