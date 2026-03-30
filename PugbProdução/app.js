@@ -222,7 +222,11 @@ async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
         }
     }
 
+    // Fix: Sort matches by creation date descending BEFORE processing.
+    // This mathematically guarantees that the first 20 matches we process 
+    // for ANY player are truly their most recent 20 matches.
     const matchDetails = matchDetailsRaw.filter(m => m !== null);
+    matchDetails.sort((a, b) => new Date(b.data.attributes.createdAt) - new Date(a.data.attributes.createdAt));
 
     // Daily Stats Accumulators (for searched player on selected date)
 
@@ -244,7 +248,13 @@ async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
             continue;
         }
 
-        // Find friends in this match
+        // Find players we care about for the Hall of Fame (EgoTeam + Searched Player)
+        const myPlayersInMatch = (m.included || []).filter(inc => 
+            inc.type === "participant" && 
+            (FRIENDS.includes(inc.attributes?.stats?.name) || inc.attributes?.stats?.name === officialName)
+        );
+
+        // Find friends STRICTLY in EgoTeam (for purely EgoTeam comparisons like Versus)
         const friendsInMatch = (m.included || []).filter(inc => 
             inc.type === "participant" && FRIENDS.includes(inc.attributes?.stats?.name)
         );
@@ -252,9 +262,9 @@ async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
         const rosters = (m.included || []).filter(inc => inc.type === "roster");
         const allParticipantsList = (m.included || []).filter(inc => inc.type === "participant");
 
-        // --- HALL OF FAME LOGIC (Accumulate stats for all 5 friends) ---
-        if (friendsInMatch && friendsInMatch.length > 0) {
-            friendsInMatch.forEach(p => {
+        // --- HALL OF FAME LOGIC (Accumulate stats for all relevant players) ---
+        if (myPlayersInMatch && myPlayersInMatch.length > 0) {
+            myPlayersInMatch.forEach(p => {
                 const name = p.attributes.stats.name;
                 if (!hallOfFameAggr[name]) {
                     hallOfFameAggr[name] = { kills: 0, damage: 0, assists: 0, neymar: 0, time: 0, matches: 0, headshots: 0, deaths: 0, wins: 0, history: [] };
@@ -612,7 +622,7 @@ function renderHallOfFame(data) {
             // Ego Team Section
             let egoHtml = '';
             if (h.friendsTeammates && h.friendsTeammates.length > 0) {
-                egoHtml = `<div style="display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-bottom: 8px;">
+                egoHtml = `<div style="display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-bottom: ${h.randomTeammates && h.randomTeammates.length > 0 ? '8px' : '0'};">
                     <span style="color: #ffd700; font-weight: 800; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; min-width: 65px;">Ego Team:</span>` +
                     h.friendsTeammates.map(t => {
                         const myStats = JSON.stringify({ name: name, kills: h.kills, damage: h.damage, assists: h.assists, headshots: h.headshots, neymar: h.neymar }).replace(/"/g, '&quot;');
@@ -620,15 +630,9 @@ function renderHallOfFame(data) {
                         return `<span onclick="toggleVersus('${matchRowId}', ${myStats}, ${friendStats}); event.stopPropagation();" 
                              style="background: rgba(255,215,0,0.1); border: 1px solid rgba(255,215,0,0.4); padding: 3px 8px; border-radius: 4px; font-size: 10px; color: #ffd700; font-weight: 700; cursor: pointer; transition: all 0.2s;"
                              class="teammate-badge" title="Clique para Versus">
-                            ${t.name}
+                            ${t.name || 'Desconhecido'}
                         </span>`;
-                    }).join('') +
-                    // TODOS Button
-                    `<span onclick="toggleVersusAll('${matchRowId}', ${JSON.stringify({ name: name, kills: h.kills, damage: h.damage, assists: h.assists, headshots: h.headshots, neymar: h.neymar }).replace(/"/g, '&quot;')}, ${JSON.stringify([...h.friendsTeammates, ...h.randomTeammates]).replace(/"/g, '&quot;')}); event.stopPropagation();" 
-                        style="background: #ffd700; color: #111; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 900; cursor: pointer; margin-left: auto; box-shadow: 0 4px 10px rgba(0,0,0,0.3);">
-                        TODOS
-                    </span>
-                </div>`;
+                    }).join('') + `</div>`;
             }
 
             // Aleatórios Section
@@ -642,12 +646,30 @@ function renderHallOfFame(data) {
                         return `<span onclick="toggleVersus('${matchRowId}', ${myStats}, ${friendStats}); event.stopPropagation();" 
                              style="background: rgba(100,116,139,0.1); border: 1px solid rgba(100,116,139,0.3); padding: 3px 8px; border-radius: 4px; font-size: 10px; color: #94a3b8; cursor: pointer; transition: all 0.2s;"
                              class="teammate-badge" title="Clique para Versus">
-                            ${t.name}
+                            ${t.name || 'Desconhecido'}
                         </span>`;
                     }).join('') + `</div>`;
             }
 
-            teammatesHtml = `<div style="padding: 5px 0; min-width: 300px;">${egoHtml}${randomHtml}</div>`;
+            let todosBtn = '';
+            if ((h.friendsTeammates && h.friendsTeammates.length > 0) || (h.randomTeammates && h.randomTeammates.length > 0)) {
+                const allTeam = [...(h.friendsTeammates || []), ...(h.randomTeammates || [])];
+                const myStatsStr = JSON.stringify({ name: name, kills: h.kills, damage: h.damage, assists: h.assists, headshots: h.headshots, neymar: h.neymar }).replace(/"/g, '&quot;');
+                const allTeamStr = JSON.stringify(allTeam).replace(/"/g, '&quot;');
+                
+                todosBtn = `<div style="margin-left: auto; display: flex; align-items: center;">
+                    <span onclick="toggleVersusAll('${matchRowId}', ${myStatsStr}, ${allTeamStr}); event.stopPropagation();" 
+                        style="background: #ffd700; color: #111; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 900; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.3);"
+                        title="Ver comparativo de toda a equipe">
+                        TODOS
+                    </span>
+                </div>`;
+            }
+
+            teammatesHtml = `<div style="padding: 5px 0; min-width: 300px; display: flex; width: 100%;">
+                <div style="flex: 1;">${egoHtml}${randomHtml}</div>
+                ${todosBtn}
+            </div>`;
             if (!teammatesHtml) {
                 teammatesHtml = '<span style="color: #666; font-size: 10px;">-</span>';
             }
