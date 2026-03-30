@@ -725,99 +725,160 @@ body {
   transform-origin: center;
 }
 
-/* ── Kills Hover Popover ── */
+/* ── Kills Hover Speech Bubble ── */
 .kills-modal-overlay {
   position: fixed;
   z-index: 10000;
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
-  transition: opacity 0.15s ease, visibility 0.15s ease, transform 0.15s ease;
-  transform: translateY(6px);
+  transition: opacity 0.2s ease, visibility 0.2s ease,
+              transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transform: translateY(-8px) scale(0.92);
 }
-
 .kills-modal-overlay.active {
   opacity: 1;
   visibility: visible;
   pointer-events: auto;
-  transform: translateY(0);
+  transform: translateY(0) scale(1);
+}
+.kills-modal-overlay.flipped {
+  transform: translateY(8px) scale(0.92);
+}
+.kills-modal-overlay.flipped.active {
+  transform: translateY(0) scale(1);
 }
 
+/* ── Bubble box ── */
 .kills-modal {
-  background: #141414;
-  border: 1px solid rgba(255, 215, 0, 0.2);
-  border-radius: 10px;
-  width: 260px;
-  max-height: 300px;
+  background: #131313;
+  border: 1px solid rgba(255, 215, 0, 0.22);
+  border-radius: 22px;           /* very rounded, like print 2 */
+  width: 220px;
+  max-height: 280px;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255,215,0,0.06);
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.95),
+    0 0 0 1px rgba(255,215,0,0.06),
+    0 0 28px rgba(255,215,0,0.05);
+  position: relative;
+  overflow: visible;
 }
 
+/* ── Tail: rotated diamond (sharper base, rounds at tip) ── */
+/* outer border layer */
+.kills-modal::before {
+  content: '';
+  position: absolute;
+  bottom: -9px;
+  left: var(--arrow-offset, 50%);
+  transform: translateX(-50%) rotate(45deg);
+  width: 16px;
+  height: 16px;
+  border-right: 1px solid rgba(255, 215, 0, 0.22);
+  border-bottom: 1px solid rgba(255, 215, 0, 0.22);
+  background: transparent;
+  pointer-events: none;
+  z-index: 1;
+}
+/* inner fill layer */
+.kills-modal::after {
+  content: '';
+  position: absolute;
+  bottom: -7px;
+  left: var(--arrow-offset, 50%);
+  transform: translateX(-50%) rotate(45deg);
+  width: 12px;
+  height: 12px;
+  background: #131313;
+  border-radius: 0 0 3px 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* ── Flipped: tail points UP ── */
+.kills-modal-overlay.flipped .kills-modal::before {
+  bottom: auto; top: -9px;
+  border-right: none; border-bottom: none;
+  border-left: 1px solid rgba(255, 215, 0, 0.22);
+  border-top: 1px solid rgba(255, 215, 0, 0.22);
+  border-radius: 3px 0 0 0;
+}
+.kills-modal-overlay.flipped .kills-modal::after {
+  bottom: auto; top: -7px;
+  border-radius: 3px 0 0 0;
+}
+
+/* ── Header ── */
 .kills-modal-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 14px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  font-size: 11px;
-  font-weight: 800;
+  padding: 11px 15px 9px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  font-size: 10px;
+  font-weight: 900;
   text-transform: uppercase;
-  letter-spacing: 0.8px;
+  letter-spacing: 1.2px;
+  border-radius: 22px 22px 0 0;
 }
 
 .kills-modal-close {
   background: none;
   border: none;
-  color: #444;
-  font-size: 14px;
+  color: #333;
+  font-size: 11px;
   cursor: pointer;
-  padding: 0 2px;
+  padding: 0;
   line-height: 1;
   transition: color 0.15s;
 }
+.kills-modal-close:hover { color: #666; }
 
-.kills-modal-close:hover { color: #fff; }
-
+/* ── Body / List ── */
 .kills-modal-body {
-  padding: 8px 10px 10px;
+  padding: 8px 12px 12px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
-
 .kills-modal-body::-webkit-scrollbar { width: 3px; }
 .kills-modal-body::-webkit-scrollbar-track { background: transparent; }
-.kills-modal-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+.kills-modal-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.07); border-radius: 2px; }
 
+/* ── Each kill entry ── */
 .kill-entry {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 5px 8px;
-  border-radius: 5px;
-  background: rgba(255, 255, 255, 0.03);
+  border-radius: 10px;
   font-size: 12px;
   color: #ccc;
+  transition: background 0.12s;
 }
+.kill-entry:hover { background: rgba(255,255,255,0.05); }
 
-.kill-entry .kill-icon { font-size: 13px; flex-shrink: 0; }
-.kill-entry .kill-name { font-weight: 600; flex: 1; }
+/* Colored number badge */
 .kill-entry .kill-count {
-  background: rgba(255,255,255,0.1);
-  color: #fff;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 800;
-  padding: 1px 6px;
-  border-radius: 10px;
+  color: #444;
+  min-width: 20px;
+  text-align: right;
   flex-shrink: 0;
+  letter-spacing: 0.3px;
 }
+.kill-entry .kill-icon { font-size: 11px; flex-shrink: 0; opacity: 0.5; }
+.kill-entry .kill-name { font-weight: 600; flex: 1; color: #e0e0e0; font-size: 12px; }
 
 .kills-modal-empty {
   text-align: center;
-  color: #444;
+  color: #3a3a3a;
   font-size: 12px;
   padding: 16px 0;
 }
+
 

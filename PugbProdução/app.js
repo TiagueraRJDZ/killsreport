@@ -864,7 +864,7 @@ function toggleVersus(containerId, me, friend) {
     `;
 
     container.innerHTML = `
-        <td colspan="8" style="padding: 15px 30px;">
+        <td colspan="10" style="padding: 15px 30px;">
             <div style="background: linear-gradient(180deg, rgba(20,20,20,0.8), rgba(10,10,10,0.8)); border: 1px solid var(--glass-border); border-radius: 12px; padding: 20px; box-shadow: inset 0 0 20px rgba(0,0,0,0.5);">
                 <!-- Header Names -->
                 <div style="display: flex; justify-content: space-between; margin-bottom: 15px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;">
@@ -929,7 +929,7 @@ function toggleVersusAll(containerId, me, teammates) {
     `).join('');
 
     container.innerHTML = `
-        <td colspan="8" style="padding: 15px 30px;">
+        <td colspan="10" style="padding: 15px 30px;">
             <div style="background: linear-gradient(180deg, rgba(20,20,20,0.8), rgba(10,10,10,0.8)); border: 1px solid var(--glass-border); border-radius: 12px; padding: 20px; box-shadow: inset 0 0 20px rgba(0,0,0,0.5);">
                 <div style="color: var(--primary); font-weight: 900; font-style: italic; margin-bottom: 15px; text-align: center; font-size: 12px; letter-spacing: 2px;">COMPARATIVO DE EQUIPE (VERSUS ALL)</div>
                 <table style="width: 100%; border-collapse: collapse;">
@@ -966,13 +966,27 @@ function openKillsModal(title, names, type, el) {
     const bodyEl  = document.getElementById('killsModalBody');
     if (!overlay) return;
 
-    // Position near the hovered element
+    // Position ABOVE the cell by default — arrow points down toward the cell
     const rect = el.getBoundingClientRect();
-    const popW = 260;
+    const popW = 210;
+    const estH = Math.min(names.length * 28 + 46, 270);
+
     let left = rect.left + rect.width / 2 - popW / 2;
-    let top  = rect.bottom + 6;
     left = Math.max(8, Math.min(left, window.innerWidth - popW - 8));
-    if (top + 310 > window.innerHeight) top = rect.top - 310;
+
+    // Arrow should point to center of the cell — compute horizontal offset within bubble
+    const cellCenterX = rect.left + rect.width / 2;
+    const arrowOffsetPct = Math.max(16, Math.min(cellCenterX - left, popW - 16));
+    overlay.querySelector('.kills-modal').style.setProperty('--arrow-offset', arrowOffsetPct + 'px');
+
+    overlay.classList.remove('flipped');
+    let top = rect.top - estH - 14; // Above the cell + gap for arrow
+    if (top < 8) {
+        // Not enough room above → show below (arrow points up)
+        top = rect.bottom + 14;
+        overlay.classList.add('flipped');
+    }
+
     overlay.style.left = left + 'px';
     overlay.style.top  = top  + 'px';
 
@@ -980,16 +994,13 @@ function openKillsModal(title, names, type, el) {
     titleEl.textContent = title;
     titleEl.style.color = type === 'bot' ? '#ef4444' : '#22c55e';
 
-    // Count occurrences and sort by kills desc
-    const counts = {};
-    names.forEach(n => counts[n] = (counts[n] || 0) + 1);
-    const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+    // Show victims in chronological order (#1, #2, #3...)
     const icon = type === 'bot' ? '🤖' : '🎯';
-    bodyEl.innerHTML = sorted.map(([n, c]) =>
+    bodyEl.innerHTML = names.map((n, i) =>
         `<div class="kill-entry">
             <span class="kill-icon">${icon}</span>
+            <span class="kill-count" style="background:transparent; color:#555; font-size:10px; padding:0; min-width:22px; text-align:right;">#${i + 1}</span>
             <span class="kill-name">${n}</span>
-            ${c > 1 ? `<span class="kill-count">×${c}</span>` : ''}
         </div>`
     ).join('');
 
