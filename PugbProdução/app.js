@@ -604,7 +604,9 @@ function renderHallOfFame(data) {
                 const month = String(d.getMonth() + 1).padStart(2, '0');
                 const hrs = String(d.getHours()).padStart(2, '0');
                 const mins = String(d.getMinutes()).padStart(2, '0');
-                timeStr = `${day}/${month} ${hrs}:${mins} <span style="color:#555; display:block; font-size:10px;">${agoStr}</span>`;
+                
+                const winIcon = h.died === 0 ? '<span style="font-size: 16px; width: 24px; display: inline-flex; align-items: center; justify-content: center; filter: drop-shadow(0 0 5px rgba(247,181,0,0.3));">🥇</span>' : '<div style="width: 24px; display: inline-block;"></div>';
+                timeStr = `<div style="display: flex; align-items: center; gap: 8px;">${winIcon}<div style="line-height: 1.2;">${day}/${month} ${hrs}:${mins} <span style="color:#555; display:block; font-size:10px;">${agoStr}</span></div></div>`;
             }
 
             let modeIcon = '';
