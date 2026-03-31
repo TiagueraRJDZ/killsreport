@@ -414,6 +414,23 @@ async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
                 const hofNameMap = {};
                 Object.keys(hallOfFameAggr).forEach(n => { hofNameMap[n.toLowerCase()] = n; });
 
+                // Identify ALL bots in this match using the match data participants list
+                // Official PUBG API: Bots have account IDs starting with 'ai.', humans with 'account.'
+                const matchDetail = matchDetailMap.get(task.matchId);
+                const botNamesInMatch = new Set();
+                if (matchDetail && matchDetail.included) {
+                    matchDetail.included.forEach(inc => {
+                        if (inc.type === "participant") {
+                            const pId = inc.attributes?.stats?.playerId;
+                            const pName = inc.attributes?.stats?.name;
+                            // Check if it's a known bot ID or doesn't have a legitimate player ID format
+                            if (pId && (pId.startsWith("ai.") || !pId.startsWith("account.")) && pName) {
+                                botNamesInMatch.add(pName.toLowerCase());
+                            }
+                        }
+                    });
+                }
+
                 logs.forEach(e => {
                     if (e._T !== "LogPlayerKillV2") return;
                     const killerName = e.killer?.name;
@@ -433,7 +450,13 @@ async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
                     if (hofKey) {
                         const victimCharName = e.victim?.character?.name || '';
                         const victimName = e.victim?.name || 'Desconhecido';
-                        const isBot = victimCharName.toLowerCase().includes('aipawn');
+                        const victimId = e.victim?.accountId || '';
+                        
+                        // Robust Bot Identification (Heuristic + ID Prefix + Name verification)
+                        const isBot = victimCharName.toLowerCase().includes('aipawn') || 
+                                    victimId.startsWith('ai.') || 
+                                    (victimId && !victimId.startsWith('account.')) ||
+                                    botNamesInMatch.has(victimName.toLowerCase());
                         
                         const histEntry = (hallOfFameAggr[hofKey]?.history || []).find(h => h.matchId === task.matchId);
                         if (histEntry) {
