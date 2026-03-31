@@ -335,7 +335,8 @@ async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
                         botKills: null,
                         playerKills: null,
                         botVictims: [],
-                        playerVictims: []
+                        playerVictims: [],
+                        killerOfUser: null
                     });
                 }
             });
@@ -433,10 +434,13 @@ async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
 
                 logs.forEach(e => {
                     if (e._T !== "LogPlayerKillV2") return;
-                    const killerName = e.killer?.name;
-                    if (!killerName) return;
+                    
+                    const killerName = e.killer?.name || e.damageCauserName || e.damageReason;
+                    const victimName = e.victim?.name;
+                    if (!victimName) return;
 
-                    const killerLower = killerName.toLowerCase();
+                    const killerLower = killerName ? killerName.toLowerCase() : "";
+                    const victimLower = victimName.toLowerCase();
                     const kDI = e.killerDamageInfo;
                     const weapon = kDI?.damageCauserName || e.damageCauserName || e.weapon?.itemId;
 
@@ -449,14 +453,13 @@ async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
                     const hofKey = hofNameMap[killerLower];
                     if (hofKey) {
                         const victimCharName = e.victim?.character?.name || '';
-                        const victimName = e.victim?.name || 'Desconhecido';
                         const victimId = e.victim?.accountId || '';
                         
                         // Robust Bot Identification (Heuristic + ID Prefix + Name verification)
                         const isBot = victimCharName.toLowerCase().includes('aipawn') || 
                                     victimId.startsWith('ai.') || 
                                     (victimId && !victimId.startsWith('account.')) ||
-                                    botNamesInMatch.has(victimName.toLowerCase());
+                                    botNamesInMatch.has(victimLower);
                         
                         const histEntry = (hallOfFameAggr[hofKey]?.history || []).find(h => h.matchId === task.matchId);
                         if (histEntry) {
@@ -470,6 +473,15 @@ async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
                                 histEntry.playerKills++;
                                 histEntry.playerVictims.push(victimName);
                             }
+                        }
+                    }
+
+                    // --- TRACK KILLER OF HOF PLAYERS ---
+                    const hofVictimKey = hofNameMap[victimLower];
+                    if (hofVictimKey) {
+                        const histEntry = (hallOfFameAggr[hofVictimKey]?.history || []).find(h => h.matchId === task.matchId);
+                        if (histEntry && killerName) {
+                            histEntry.killerOfUser = killerName;
                         }
                     }
                 });
@@ -756,18 +768,21 @@ function renderHallOfFame(data) {
             return `
             <tr style="border-bottom: 1px solid #222;">
                 <td style="color: #888; font-size: 11px; padding: 4px 0;">${timeStr}</td>
-                <td style="color: #fff;">${h.kills}</td>
-                <td onmouseenter="openKillsModal('👤 Players', ${playerVictimsJson}, 'player', this)" onmouseleave="closeKillsModal()" style="color: ${h.playerKills !== null ? '#22c55e' : '#444'}; font-weight: ${h.playerKills !== null ? '700' : '400'}; font-size: 12px; cursor: default; user-select: none;">${h.playerKills !== null ? h.playerKills : '—'}</td>
-                <td onmouseenter="openKillsModal('🤖 Bots', ${botVictimsJson}, 'bot', this)" onmouseleave="closeKillsModal()" style="color: ${h.botKills !== null ? '#ef4444' : '#444'}; font-weight: ${h.botKills !== null ? '700' : '400'}; font-size: 12px; cursor: default; user-select: none;">${h.botKills !== null ? h.botKills : '—'}</td>
-                <td style="color: #ccc;">${h.headshots}</td>
-                <td style="color: #aaa;">${h.damage}</td>
-                <td style="color: #aaa;">${h.assists}</td>
-                <td style="color: #aaa;">${h.neymar}</td>
+                <td style="color: #fff; text-align: center;">${h.kills}</td>
+                <td onmouseenter="openKillsModal('👤 Players', ${playerVictimsJson}, 'player', this)" onmouseleave="closeKillsModal()" style="color: ${h.playerKills !== null ? '#22c55e' : '#444'}; font-weight: ${h.playerKills !== null ? '700' : '400'}; font-size: 12px; cursor: default; user-select: none; text-align: center;">${h.playerKills !== null ? h.playerKills : '—'}</td>
+                <td onmouseenter="openKillsModal('🤖 Bots', ${botVictimsJson}, 'bot', this)" onmouseleave="closeKillsModal()" style="color: ${h.botKills !== null ? '#ef4444' : '#444'}; font-weight: ${h.botKills !== null ? '700' : '400'}; font-size: 12px; cursor: default; user-select: none; text-align: center;">${h.botKills !== null ? h.botKills : '—'}</td>
+                <td style="color: #ccc; text-align: center;">${h.headshots}</td>
+                <td style="color: #aaa; text-align: center;">${h.damage}</td>
+                <td style="color: #aaa; text-align: center;">${h.assists}</td>
+                <td style="color: #aaa; text-align: center;">${h.neymar}</td>
+                <td style="text-align: center; font-size: 11px;">
+                    ${h.died === 0 ? '<span style="color: #22c55e; font-weight: 800;">WIN</span>' : `<span style="color: #ef4444;">${ID_NAMES[h.killerOfUser] || h.killerOfUser || 'Desconhecido'}</span>`}
+                </td>
                 <td style="text-align: center;" title="${h.mode}">${modeIcon}</td>
                 <td>${teammatesHtml}</td>
             </tr>
             <tr id="${matchRowId}" class="comparison-row" style="display: none; background: #0c0c0c;">
-                <td colspan="10" style="padding: 10px;">
+                <td colspan="11" style="padding: 10px;">
                     <!-- Versus injection point -->
                 </td>
             </tr>
@@ -793,7 +808,7 @@ function renderHallOfFame(data) {
                 <td style="font-size: 11px; text-align: right;">${timeH}h ${timeM}m vivo</td>
             </tr>
             <tr id="history-${safeId}" class="player-history-row" style="display: none; background: #1a1a1a;">
-                <td colspan="10" style="padding: 15px; border-radius: 8px;">
+                <td colspan="11" style="padding: 15px; border-radius: 8px;">
                     <div style="display: flex; justify-content: space-between; margin-bottom: 10px; border-bottom: 1px solid #333; padding-bottom: 5px;">
                         <span style="color: #ffd700; font-weight: bold; font-size: 13px;">DETALHES DAS ${stats.matches} PARTIDAS:</span>
                         <div style="font-size: 13px;">
@@ -805,13 +820,14 @@ function renderHallOfFame(data) {
                         <thead>
                             <tr style="color: #ffd700; border-bottom: 1px solid #333;">
                                 <th style="padding: 5px 0;">Data</th>
-                                <th>Kills</th>
-                                <th style="color: #22c55e;">👤 Players</th>
-                                <th style="color: #ef4444;">🤖 Bots</th>
-                                <th>Headshots</th>
-                                <th>Dano</th>
-                                <th>Assists</th>
-                                <th>Neymar</th>
+                                <th style="text-align: center;">Kills</th>
+                                <th style="color: #22c55e; text-align: center;">👤 Players</th>
+                                <th style="color: #ef4444; text-align: center;">🤖 Bots</th>
+                                <th style="text-align: center;">Headshots</th>
+                                <th style="text-align: center;">Dano</th>
+                                <th style="text-align: center;">Assists</th>
+                                <th style="text-align: center;">Neymar</th>
+                                <th style="text-align: center;">💀 Assassino</th>
                                 <th style="text-align: center;">Modo</th>
                                 <th>Companheiros</th>
                             </tr>
@@ -887,7 +903,7 @@ function toggleVersus(containerId, me, friend) {
     `;
 
     container.innerHTML = `
-        <td colspan="10" style="padding: 15px 30px;">
+        <td colspan="11" style="padding: 15px 30px;">
             <div style="background: linear-gradient(180deg, rgba(20,20,20,0.8), rgba(10,10,10,0.8)); border: 1px solid var(--glass-border); border-radius: 12px; padding: 20px; box-shadow: inset 0 0 20px rgba(0,0,0,0.5);">
                 <!-- Header Names -->
                 <div style="display: flex; justify-content: space-between; margin-bottom: 15px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;">
@@ -952,7 +968,7 @@ function toggleVersusAll(containerId, me, teammates) {
     `).join('');
 
     container.innerHTML = `
-        <td colspan="10" style="padding: 15px 30px;">
+        <td colspan="11" style="padding: 15px 30px;">
             <div style="background: linear-gradient(180deg, rgba(20,20,20,0.8), rgba(10,10,10,0.8)); border: 1px solid var(--glass-border); border-radius: 12px; padding: 20px; box-shadow: inset 0 0 20px rgba(0,0,0,0.5);">
                 <div style="color: var(--primary); font-weight: 900; font-style: italic; margin-bottom: 15px; text-align: center; font-size: 12px; letter-spacing: 2px;">COMPARATIVO DE EQUIPE (VERSUS ALL)</div>
                 <table style="width: 100%; border-collapse: collapse;">
