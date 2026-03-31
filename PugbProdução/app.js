@@ -491,6 +491,15 @@ async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
         }));
     }
 
+    // --- ACCUMULATE TRUE KILLS TOTALS ---
+    Object.values(hallOfFameAggr).forEach(pData => {
+        pData.realKillsTotal = 0;
+        pData.history.forEach(h => {
+             // Use 0 if telemetry failed or no kills
+             pData.realKillsTotal += (h.playerKills || 0);
+        });
+    });
+
     document.getElementById("pageLoader").classList.remove("active");
     currentAggregatedData = hallOfFameAggr; // Save for clicking
     renderHallOfFame(hallOfFameAggr);
@@ -513,11 +522,12 @@ function updateDashboard(playerName) {
     const stats = currentAggregatedData[playerName];
     if (!stats) return;
 
-    const kd = stats.deaths ? (stats.kills / stats.deaths).toFixed(2) : stats.kills;
-    const hs = stats.kills ? ((stats.headshots / stats.kills) * 100).toFixed(1) : "0.0";
+    const realKills = stats.realKillsTotal || 0;
+    const kd = stats.deaths ? (realKills / stats.deaths).toFixed(2) : realKills;
+    const hs = realKills ? ((stats.headshots / realKills) * 100).toFixed(1) : "0.0";
     const avgDmg = stats.matches ? (stats.damage / stats.matches).toFixed(0) : 0;
 
-    updateText('killsVal', stats.kills);
+    updateText('killsVal', realKills);
     updateText('kdVal', kd);
     updateText('winsVal', stats.wins); 
     updateText('matchesVal', stats.matches);
@@ -639,8 +649,8 @@ function renderHallOfFame(data) {
         }
     });
 
-    // Sort by Kills (primary) and Damage (secondary)
-    const sorted = players.sort((a,b) => b[1].kills - a[1].kills || b[1].damage - a[1].damage);
+    // Sort by Real Kills (primary) and Damage (secondary)
+    const sorted = players.sort((a,b) => (b[1].realKillsTotal || 0) - (a[1].realKillsTotal || 0) || b[1].damage - a[1].damage);
 
     const rows = sorted.map(([name, stats], index) => {
         const timeH = Math.floor(stats.time / 3600);
@@ -668,8 +678,9 @@ function renderHallOfFame(data) {
             badgeStyle = 'background: #555; color: #fff;';
         }
 
-        const kd = (stats.kills / Math.max(1, stats.deaths)).toFixed(2);
-        const hsRate = stats.kills > 0 ? Math.round((stats.headshots / stats.kills) * 100) : 0;
+        const realKills = stats.realKillsTotal || 0;
+        const kd = (realKills / Math.max(1, stats.deaths)).toFixed(2);
+        const hsRate = realKills > 0 ? Math.round((stats.headshots / realKills) * 100) : 0;
         const safeId = name.replace(/[^a-zA-Z0-9]/g, '');
 
         const historyRows = (stats.history || []).map(h => {
@@ -800,7 +811,9 @@ function renderHallOfFame(data) {
                     <span class="player-name">${name}</span>
                     ${badgeText ? `<span class="mior-badge" style="${badgeStyle}">${badgeText}</span>` : ''}
                 </td>
-                <td class="highlight-stat">${stats.kills} Kills</td>
+                <td class="highlight-stat" style="text-align: center;">
+                    <span style="font-size: 24px; font-weight: 900; color: #22c55e;">${stats.realKillsTotal || 0}</span>
+                </td>
                 <td><span style="color: #999;">Dano:</span> ${stats.damage.toLocaleString()}</td>
                 <td><span style="color: #999;">Asst:</span> ${stats.assists}</td>
                 <td><span style="color: #999;">Neymar:</span> ${stats.neymar}</td>
@@ -821,7 +834,7 @@ function renderHallOfFame(data) {
                             <tr style="color: #ffd700; border-bottom: 1px solid #333;">
                                 <th style="padding: 5px 0;">Data</th>
                                 <th style="text-align: center;">Kills</th>
-                                <th style="color: #22c55e; text-align: center;">👤 Players</th>
+                                <th style="color: #22c55e; text-align: center;">🎯 Reais</th>
                                 <th style="color: #ef4444; text-align: center;">🤖 Bots</th>
                                 <th style="text-align: center;">Headshots</th>
                                 <th style="text-align: center;">Dano</th>
@@ -843,6 +856,18 @@ function renderHallOfFame(data) {
 
     container.innerHTML = `
         <table class="rank-table">
+            <thead>
+                <tr style="border-bottom: 1px solid #333; color: #666; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">
+                    <th style="padding: 10px; width: 40px; text-align: center;">RK</th>
+                    <th style="padding: 10px; text-align: left;">JOGADOR</th>
+                    <th style="padding: 10px; text-align: center; color: #22c55e;">KILLS</th>
+                    <th style="padding: 10px; text-align: left;">DANO</th>
+                    <th style="padding: 10px; text-align: left;">ASST</th>
+                    <th style="padding: 10px; text-align: left;">NEYMAR</th>
+                    <th style="padding: 10px; text-align: left;">PARTIDAS</th>
+                    <th style="padding: 10px; text-align: right;">TEMPO VIVO</th>
+                </tr>
+            </thead>
             <tbody>
                 ${rows}
             </tbody>
