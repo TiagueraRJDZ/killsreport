@@ -432,56 +432,104 @@ async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
                     });
                 }
 
-                logs.forEach(e => {
-                    if (e._T !== "LogPlayerKillV2") return;
-                    
-                    const killerName = e.killer?.name || e.damageCauserName || e.damageReason;
-                    const victimName = e.victim?.name;
-                    if (!victimName) return;
+                let matchStartTime = null;
+                logs.forEach(e => { if (e._T === "LogMatchStart") matchStartTime = e._D; });
+                if (!matchStartTime && logs.length > 0) matchStartTime = logs[0]._D;
 
-                    const killerLower = killerName ? killerName.toLowerCase() : "";
-                    const victimLower = victimName.toLowerCase();
+                logs.forEach(e => {
+                    const eventTime = e._D;
+                    const elapsedMs = matchStartTime ? (new Date(eventTime) - new Date(matchStartTime)) : 0;
+                    const m = Math.floor(Math.max(0, elapsedMs) / 60000);
+                    const s = Math.floor((Math.max(0, elapsedMs) % 60000) / 1000);
+                    const timeStamp = `${m}:${s.toString().padStart(2, '0')}`;
+                    
+                    // --- TEAM/SQUAD EVENT TRACKING ---
+                    const attackerName = e.attacker?.name;
+                    const killerName = e.killer?.name || e.damageCauserName || e.damageReason || attackerName;
+                    const victimName = e.victim?.name;
                     const kDI = e.killerDamageInfo;
                     const weapon = kDI?.damageCauserName || e.damageCauserName || e.weapon?.itemId;
+                    const hfMapK = killerName ? hofNameMap[killerName.toLowerCase()] : null;
+                    const hfMapV = victimName ? hofNameMap[victimName.toLowerCase()] : null;
 
-                    // Weapons: still only for the searched player
-                    if (killerLower === officialName.toLowerCase() && weapon) {
-                        weapons[weapon] = (weapons[weapon] || 0) + 1;
-                    }
-
-                    // Bot/Player kill classification for ALL HoF players
-                    const hofKey = hofNameMap[killerLower];
-                    if (hofKey) {
-                        const victimCharName = e.victim?.character?.name || '';
-                        const victimId = e.victim?.accountId || '';
-                        
-                        // Robust Bot Identification (Heuristic + ID Prefix + Name verification)
-                        const isBot = victimCharName.toLowerCase().includes('aipawn') || 
-                                    victimId.startsWith('ai.') || 
-                                    (victimId && !victimId.startsWith('account.')) ||
-                                    botNamesInMatch.has(victimLower);
-                        
-                        const histEntry = (hallOfFameAggr[hofKey]?.history || []).find(h => h.matchId === task.matchId);
-                        if (histEntry) {
-                            if (histEntry.botKills === null) histEntry.botKills = 0;
-                            if (histEntry.playerKills === null) histEntry.playerKills = 0;
-                            
-                            if (isBot) {
-                                histEntry.botKills++;
-                                histEntry.botVictims.push(victimName);
-                            } else {
-                                histEntry.playerKills++;
-                                histEntry.playerVictims.push(victimName);
-                            }
+                    // KILLS / DEATHS
+                    if (e._T === "LogPlayerKillV2" && victimName) {
+                        const isHS = kDI?.damageReason === "HeadShot" || e.damageReason === "HeadShot";
+                        if (hfMapK) {
+                             const entry = (hallOfFameAggr[hfMapK].history || []).find(h => h.matchId === task.matchId);
+                             if (entry) {
+                                 if (!entry.timeline) entry.timeline = [];
+                                 entry.timeline.push({ type: 'kill', time: timeStamp, killer: killerName, victim: victimName, weapon: ID_NAMES[weapon] || weapon || 'Desconhecido', headshot: isHS });
+                             }
+                        }
+                        if (hfMapV) {
+                             const entry = (hallOfFameAggr[hfMapV].history || []).find(h => h.matchId === task.matchId);
+                             if (entry) {
+                                 if (!entry.timeline) entry.timeline = [];
+                                 entry.timeline.push({ type: 'death', time: timeStamp, killer: killerName, victim: victimName, weapon: ID_NAMES[weapon] || weapon || 'Desconhecido', headshot: isHS });
+                             }
                         }
                     }
 
-                    // --- TRACK KILLER OF HOF PLAYERS ---
-                    const hofVictimKey = hofNameMap[victimLower];
-                    if (hofVictimKey) {
-                        const histEntry = (hallOfFameAggr[hofVictimKey]?.history || []).find(h => h.matchId === task.matchId);
-                        if (histEntry && killerName) {
-                            histEntry.killerOfUser = killerName;
+                    // KNOCKOUTS (Team or User)
+                    if (e._T === "LogPlayerMakeDamageV2" && e.isFatal && victimName) {
+                        if (hfMapK) {
+                             const entry = (hallOfFameAggr[hfMapK].history || []).find(h => h.matchId === task.matchId);
+                             if (entry) {
+                                 if (!entry.timeline) entry.timeline = [];
+                                 entry.timeline.push({ type: 'knock', time: timeStamp, killer: killerName, victim: victimName });
+                             }
+                        }
+                        if (hfMapV) {
+                             const entry = (hallOfFameAggr[hfMapV].history || []).find(h => h.matchId === task.matchId);
+                             if (entry) {
+                                 if (!entry.timeline) entry.timeline = [];
+                                 entry.timeline.push({ type: 'get_knocked', time: timeStamp, killer: killerName, victim: victimName });
+                             }
+                        }
+                    }
+
+                    // REVIVES
+                    if (e._T === "LogPlayerRevive" && victimName) {
+                        const reviverName = e.reviver?.name;
+                        const hfMapR = reviverName ? hofNameMap[reviverName.toLowerCase()] : null;
+
+                        if (hfMapV) {
+                             const entry = (hallOfFameAggr[hfMapV].history || []).find(h => h.matchId === task.matchId);
+                             if (entry) {
+                                 if (!entry.timeline) entry.timeline = [];
+                                 entry.timeline.push({ type: 'revive', time: timeStamp, reviver: reviverName || 'Companheiro', victim: victimName });
+                             }
+                        }
+                        if (hfMapR) {
+                             const entry = (hallOfFameAggr[hfMapR].history || []).find(h => h.matchId === task.matchId);
+                             if (entry) {
+                                 if (!entry.timeline) entry.timeline = [];
+                                 entry.timeline.push({ type: 'revive_other', time: timeStamp, reviver: reviverName, victim: victimName });
+                             }
+                        }
+                    }
+
+                    // --- ORIGINAL COUNT LOGIC (Remains same) ---
+                    if (e._T === "LogPlayerKillV2") {
+                        const killerLower = killerName ? killerName.toLowerCase() : "";
+                        const victimLower = victimName.toLowerCase();
+                        if (killerLower === officialName.toLowerCase() && weapon) {
+                            weapons[weapon] = (weapons[weapon] || 0) + 1;
+                        }
+                        if (hfMapK) {
+                            const isBot = (e.victim?.character?.name || '').toLowerCase().includes('aipawn') || 
+                                        (e.victim?.accountId || '').startsWith('ai.') || 
+                                        botNamesInMatch.has(victimLower);
+                            const hEntry = (hallOfFameAggr[hfMapK].history || []).find(h => h.matchId === task.matchId);
+                            if (hEntry) {
+                                if (hEntry.botKills === null) hEntry.botKills = 0; if (hEntry.playerKills === null) hEntry.playerKills = 0;
+                                if (isBot) { hEntry.botKills++; hEntry.botVictims.push(victimName); } else { hEntry.playerKills++; hEntry.playerVictims.push(victimName); }
+                            }
+                        }
+                        if (hfMapV) {
+                            const hEntry = (hallOfFameAggr[hfMapV].history || []).find(h => h.matchId === task.matchId);
+                            if (hEntry && killerName) hEntry.killerOfUser = killerName;
                         }
                     }
                 });
@@ -701,8 +749,7 @@ function renderHallOfFame(data) {
                 const hrs = String(d.getHours()).padStart(2, '0');
                 const mins = String(d.getMinutes()).padStart(2, '0');
                 
-                const winIcon = h.died === 0 ? '<span class="victory-medal">🥇</span>' : '<div style="width: 24px;"></div>';
-                timeStr = `<div style="display: flex; align-items: center; gap: 8px;">${winIcon}<div style="line-height: 1.2;">${day}/${month} ${hrs}:${mins} <span style="color:#555; display:block; font-size:10px;">${agoStr}</span></div></div>`;
+                timeStr = `<div style="line-height: 1.2;">${day}/${month} ${hrs}:${mins} <span style="color:#555; display:block; font-size:10px;">${agoStr}</span></div>`;
             }
 
             const userSvg = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" style="margin: 0 -3px; flex-shrink: 0;"><path d="M20 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>`;
@@ -750,26 +797,27 @@ function renderHallOfFame(data) {
                     }).join('') + `</div>`;
             }
 
-            let todosBtn = '';
-            if ((h.friendsTeammates && h.friendsTeammates.length > 0) || (h.randomTeammates && h.randomTeammates.length > 0)) {
-                const allTeam = [...(h.friendsTeammates || []), ...(h.randomTeammates || [])];
-                const myStatsStr = JSON.stringify({ name: name, kills: h.kills, damage: h.damage, assists: h.assists, headshots: h.headshots, neymar: h.neymar }).replace(/"/g, '&quot;');
-                const allTeamStr = JSON.stringify(allTeam).replace(/"/g, '&quot;');
-                
-                todosBtn = `<div style="margin-left: auto; display: flex; align-items: center;">
+            const allTeam = [...(h.friendsTeammates || []), ...(h.randomTeammates || [])];
+            const myStatsStr = JSON.stringify({ name: name, kills: h.kills, damage: h.damage, assists: h.assists, headshots: h.headshots, neymar: h.neymar }).replace(/"/g, '&quot;');
+            const allTeamStr = JSON.stringify(allTeam).replace(/"/g, '&quot;');
+
+            const actionButtons = `<div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+                <span onclick="openMatchTimeline('${name.replace(/'/g, "\\'")}', '${h.matchId}'); event.stopPropagation();" 
+                    style="background: #ffd700; color: #111; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 900; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.3); transition: all 0.2s;"
+                    onmouseover="this.style.background='#ffc933'" onmouseout="this.style.background='#ffd700'"
+                    title="Ver linha do tempo da partida">
+                    TIME LINE
+                </span>
+                ${allTeam.length > 0 ? `
                     <span onclick="toggleVersusAll('${matchRowId}', ${myStatsStr}, ${allTeamStr}); event.stopPropagation();" 
                         style="background: #ffd700; color: #111; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 900; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.3);"
                         title="Ver comparativo de toda a equipe">
                         TODOS
-                    </span>
-                </div>`;
-            }
-
-            teammatesHtml = `<div style="padding: 5px 0; min-width: 300px; display: flex; width: 100%;">
-                <div style="flex: 1;">${egoHtml}${randomHtml}</div>
-                ${todosBtn}
+                    </span>` : ''}
             </div>`;
-            if (!teammatesHtml) {
+
+            teammatesHtml = `<div style="padding: 5px 0;">${egoHtml}${randomHtml}</div>`;
+            if (!(h.friendsTeammates && h.friendsTeammates.length > 0) && !(h.randomTeammates && h.randomTeammates.length > 0)) {
                 teammatesHtml = '<span style="color: #666; font-size: 10px;">-</span>';
             }
 
@@ -779,6 +827,7 @@ function renderHallOfFame(data) {
             return `
             <tr style="border-bottom: 1px solid #222;">
                 <td style="color: #888; font-size: 11px; padding: 4px 0;">${timeStr}</td>
+                <td style="text-align: center;">${h.died === 0 ? '<span class="victory-medal" style="font-size: 16px;">🥇</span>' : ''}</td>
                 <td style="color: #fff; text-align: center;">${h.kills}</td>
                 <td onmouseenter="openKillsModal('👤 Players', ${playerVictimsJson}, 'player', this)" onmouseleave="closeKillsModal()" style="color: ${h.playerKills !== null ? '#22c55e' : '#444'}; font-weight: ${h.playerKills !== null ? '700' : '400'}; font-size: 12px; cursor: default; user-select: none; text-align: center;">${h.playerKills !== null ? h.playerKills : '—'}</td>
                 <td onmouseenter="openKillsModal('🤖 Bots', ${botVictimsJson}, 'bot', this)" onmouseleave="closeKillsModal()" style="color: ${h.botKills !== null ? '#ef4444' : '#444'}; font-weight: ${h.botKills !== null ? '700' : '400'}; font-size: 12px; cursor: default; user-select: none; text-align: center;">${h.botKills !== null ? h.botKills : '—'}</td>
@@ -790,10 +839,11 @@ function renderHallOfFame(data) {
                     ${h.died === 0 ? '<span style="color: #22c55e; font-weight: 800;">WIN</span>' : `<span style="color: #ef4444;">${ID_NAMES[h.killerOfUser] || h.killerOfUser || 'Desconhecido'}</span>`}
                 </td>
                 <td style="text-align: center;" title="${h.mode}">${modeIcon}</td>
-                <td>${teammatesHtml}</td>
+                <td style="vertical-align: middle;">${teammatesHtml}</td>
+                <td style="text-align: center; vertical-align: middle; padding: 0 5px;">${actionButtons}</td>
             </tr>
             <tr id="${matchRowId}" class="comparison-row" style="display: none; background: #0c0c0c;">
-                <td colspan="11" style="padding: 10px;">
+                <td colspan="13" style="padding: 10px;">
                     <!-- Versus injection point -->
                 </td>
             </tr>
@@ -812,7 +862,7 @@ function renderHallOfFame(data) {
                     ${badgeText ? `<span class="mior-badge" style="${badgeStyle}">${badgeText}</span>` : ''}
                 </td>
                 <td class="highlight-stat" style="text-align: center;">
-                    <span style="font-size: 24px; font-weight: 900; color: #22c55e;">${stats.realKillsTotal || 0}</span>
+                    <span style="font-size: 24px; font-weight: 900; color: #ffd700;">${stats.realKillsTotal || 0}</span>
                 </td>
                 <td><span style="color: #999;">Dano:</span> ${stats.damage.toLocaleString()}</td>
                 <td><span style="color: #999;">Asst:</span> ${stats.assists}</td>
@@ -821,7 +871,7 @@ function renderHallOfFame(data) {
                 <td style="font-size: 11px; text-align: right;">${timeH}h ${timeM}m vivo</td>
             </tr>
             <tr id="history-${safeId}" class="player-history-row" style="display: none; background: #1a1a1a;">
-                <td colspan="11" style="padding: 15px; border-radius: 8px;">
+                <td colspan="13" style="padding: 15px; border-radius: 8px;">
                     <div style="display: flex; justify-content: space-between; margin-bottom: 10px; border-bottom: 1px solid #333; padding-bottom: 5px;">
                         <span style="color: #ffd700; font-weight: bold; font-size: 13px;">DETALHES DAS ${stats.matches} PARTIDAS:</span>
                         <div style="font-size: 13px;">
@@ -832,17 +882,19 @@ function renderHallOfFame(data) {
                     <table style="width: 100%; text-align: left; font-size: 12px; border-collapse: collapse;">
                         <thead>
                             <tr style="color: #ffd700; border-bottom: 1px solid #333;">
-                                <th style="padding: 5px 0;">Data</th>
-                                <th style="text-align: center;">Kills</th>
-                                <th style="color: #22c55e; text-align: center;">🎯 Reais</th>
-                                <th style="color: #ef4444; text-align: center;">🤖 Bots</th>
-                                <th style="text-align: center;">Headshots</th>
-                                <th style="text-align: center;">Dano</th>
-                                <th style="text-align: center;">Assists</th>
-                                <th style="text-align: center;">Neymar</th>
-                                <th style="text-align: center;">💀 Assassino</th>
-                                <th style="text-align: center;">Modo</th>
-                                <th>Companheiros</th>
+                                <th style="padding: 5px 0; width: 85px;">Data</th>
+                                <th style="text-align: center; width: 40px;">WIN</th>
+                                <th style="text-align: center; width: 40px;">Kills</th>
+                                <th style="color: #22c55e; text-align: center; width: 60px;">Reais</th>
+                                <th style="color: #ef4444; text-align: center; width: 60px;">Bots</th>
+                                <th style="text-align: center; width: 50px;">HS</th>
+                                <th style="text-align: center; width: 60px;">Dano</th>
+                                <th style="text-align: center; width: 50px;">Asst</th>
+                                <th style="text-align: center; width: 50px;">Ney</th>
+                                <th style="text-align: center; width: 110px;">Assassino</th>
+                                <th style="text-align: center; width: 55px;">Modo</th>
+                                <th style="padding-left: 10px;">Companheiros</th>
+                                <th style="text-align: center; width: 180px;">Ações</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -855,12 +907,12 @@ function renderHallOfFame(data) {
     }).join('');
 
     container.innerHTML = `
-        <table class="rank-table">
+        <table class="rank-table" style="font-size: 13px;">
             <thead>
-                <tr style="border-bottom: 1px solid #333; color: #666; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">
+                <tr style="border-bottom: 1px solid #333; color: #666; font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">
                     <th style="padding: 10px; width: 40px; text-align: center;">RK</th>
                     <th style="padding: 10px; text-align: left;">JOGADOR</th>
-                    <th style="padding: 10px; text-align: center; color: #22c55e;">KILLS</th>
+                    <th style="padding: 10px; text-align: center; color: #ffd700;">KILLS</th>
                     <th style="padding: 10px; text-align: left;">DANO</th>
                     <th style="padding: 10px; text-align: left;">ASST</th>
                     <th style="padding: 10px; text-align: left;">NEYMAR</th>
@@ -928,7 +980,7 @@ function toggleVersus(containerId, me, friend) {
     `;
 
     container.innerHTML = `
-        <td colspan="11" style="padding: 15px 30px;">
+        <td colspan="13" style="padding: 10px;">
             <div style="background: linear-gradient(180deg, rgba(20,20,20,0.8), rgba(10,10,10,0.8)); border: 1px solid var(--glass-border); border-radius: 12px; padding: 20px; box-shadow: inset 0 0 20px rgba(0,0,0,0.5);">
                 <!-- Header Names -->
                 <div style="display: flex; justify-content: space-between; margin-bottom: 15px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;">
@@ -993,7 +1045,7 @@ function toggleVersusAll(containerId, me, teammates) {
     `).join('');
 
     container.innerHTML = `
-        <td colspan="11" style="padding: 15px 30px;">
+        <td colspan="13" style="padding: 10px;">
             <div style="background: linear-gradient(180deg, rgba(20,20,20,0.8), rgba(10,10,10,0.8)); border: 1px solid var(--glass-border); border-radius: 12px; padding: 20px; box-shadow: inset 0 0 20px rgba(0,0,0,0.5);">
                 <div style="color: var(--primary); font-weight: 900; font-style: italic; margin-bottom: 15px; text-align: center; font-size: 12px; letter-spacing: 2px;">COMPARATIVO DE EQUIPE (VERSUS ALL)</div>
                 <table style="width: 100%; border-collapse: collapse;">
@@ -1017,6 +1069,102 @@ window.togglePlayerHistory = togglePlayerHistory;
 window.toggleVersus = toggleVersus;
 window.toggleVersusAll = toggleVersusAll;
 window.loadPlayerData = loadPlayerData;
+window.togglePlayerHistory = togglePlayerHistory;
+window.toggleVersus = toggleVersus;
+window.toggleVersusAll = toggleVersusAll;
+window.loadPlayerData = loadPlayerData;
+window.openMatchTimeline = openMatchTimeline;
+window.closeTimelineModal = closeTimelineModal;
+
+function openMatchTimeline(playerName, matchId) {
+    const stats = currentAggregatedData[playerName];
+    const match = stats?.history.find(h => h.matchId === matchId);
+    
+    const modal = document.getElementById('timelineModal');
+    const body = document.getElementById('timelineModalBody');
+    if (!modal || !body) return;
+
+    if (!match || !match.timeline || match.timeline.length === 0) {
+        body.innerHTML = `<div style="text-align:center; padding: 40px; color: #666; font-style: italic;">Desculpe, telemetria detalhada não disponível para esta partida.</div>`;
+    } else {
+        // Sort events by time
+        const sorted = [...match.timeline].sort((a, b) => {
+            const [mA, sA] = a.time.split(':').map(Number);
+            const [mB, sB] = b.time.split(':').map(Number);
+            return (mA * 60 + sA) - (mB * 60 + sB);
+        });
+
+        // Add Victory manually
+        if (match.died === 0) {
+            sorted.push({ type: 'victory', time: 'Fim', text: 'VITÓRIA! Sobreviveu até o último círculo.' });
+        }
+
+        body.innerHTML = sorted.map((e, index) => {
+            let icon = '⚪'; let title = ''; let desc = ''; let badge = '';
+            
+            switch(e.type) {
+                case 'kill':
+                    icon = '🎯'; title = 'Inimigo Eliminado'; 
+                    desc = `Eliminou <strong>${e.victim}</strong> usando ${e.weapon}${e.headshot ? ' <span style="color:#ffd700;">(HEADSHOT! 🎯)</span>' : ''}`;
+                    badge = '<span class="timeline-badge badge-kill">Abate</span>';
+                    break;
+                case 'death':
+                    icon = '💀'; title = 'Membro Eliminado';
+                    desc = `<strong>${e.victim}</strong> foi eliminado por <strong>${e.killer}</strong> (${e.weapon})`;
+                    badge = '<span class="timeline-badge badge-death">Morte</span>';
+                    break;
+                case 'knock':
+                    icon = '💥'; title = 'Inimigo Nocauteado';
+                    desc = `<strong>${e.killer}</strong> deixou <strong>${e.victim}</strong> em estado DBNO`;
+                    badge = '<span class="timeline-badge badge-knock">Nocauteou</span>';
+                    break;
+                case 'get_knocked':
+                    icon = '🚑'; title = 'Membro Nocauteado';
+                    desc = `<strong>${e.victim}</strong> foi nocauteado por <strong>${e.killer}</strong>`;
+                    badge = '<span class="timeline-badge badge-knock">Nocauteado</span>';
+                    break;
+                case 'revive':
+                    icon = '💉'; title = 'Revivido (Squad)';
+                    desc = `<strong>${e.victim}</strong> foi trazido de volta por <strong>${e.reviver}</strong>`;
+                    badge = '<span class="timeline-badge badge-revive">Revive</span>';
+                    break;
+                case 'revive_other':
+                    icon = '🤝'; title = 'Auxílio Médico';
+                    desc = `<strong>${e.reviver}</strong> reviveu <strong>${e.victim}</strong>`;
+                    badge = '<span class="timeline-badge badge-revive">Ajuda</span>';
+                    break;
+                case 'victory':
+                    icon = '🏆'; title = 'WINNER WINNER CHICKEN DINNER!';
+                    desc = 'Parabéns! A equipe alcançou o topo da partida.';
+                    badge = '<span class="timeline-badge badge-win">Vitória</span>';
+                    break;
+            }
+
+            return `
+                <div class="timeline-item">
+                    <div class="timeline-item-time">${e.time} MIN</div>
+                    <div class="timeline-item-marker">
+                        <div class="timeline-icon-box" style="border-color: ${e.type.includes('kill') ? '#27ae60' : e.type.includes('knock') ? '#f7b500' : e.type.includes('death') ? '#eb5757' : '#ffd700'}">${icon}</div>
+                        <div class="timeline-line"></div>
+                    </div>
+                    <div class="timeline-card" style="border-left: 3px solid ${e.type.includes('revive') ? '#3b82f6' : 'transparent'};">
+                        ${badge}
+                        <h4>${title}</h4>
+                        <p>${desc}</p>
+                    </div>
+                </div>`;
+        }).join('');
+    }
+
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden'; // Prevent scroll
+}
+
+function closeTimelineModal() {
+    const modal = document.getElementById('timelineModal');
+    if (modal) modal.classList.remove('active');
+    document.body.style.overflow = 'auto';
+}
 
 // ── Kills Hover Popover ──
 let _killsTimer = null;
