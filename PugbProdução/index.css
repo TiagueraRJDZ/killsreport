@@ -237,39 +237,88 @@ body {
   gap: 12px;
 }
 
-.weapon-card {
+.weapons-container {
   display: flex;
-  align-items: center;
-  gap: 15px;
-  background: rgba(255,255,255,0.03);
+  flex-direction: column;
+  gap: 12px;
+}
+
+.weapon-tier-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   padding: 12px;
-  border-radius: 10px;
-  border: 1px solid transparent;
+  background: rgba(255, 255, 255, 0.08); /* Even lighter */
+  border-radius: 12px;
+  border: 1px solid var(--glass-border);
+  box-shadow: inset 0 0 20px rgba(255,255,255,0.02);
   transition: var(--transition);
 }
 
+.weapon-tier-row:hover {
+  background: rgba(255, 255, 255, 0.12); /* Brighter on hover */
+  border-color: rgba(247, 181, 0, 0.3);
+}
+
+.tier-header {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--primary);
+  letter-spacing: 1.5px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  opacity: 0.8;
+}
+
+.tier-header::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(247, 181, 0, 0.15), transparent);
+}
+
+.tier-weapons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.weapon-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  padding: 10px;
+  transition: var(--transition);
+  border: none;
+}
+
 .weapon-card:hover {
-  background: rgba(255,255,255,0.06);
-  border-color: var(--glass-border);
+  transform: translateY(-4px);
 }
 
 .weapon-card img {
-  width: 48px;
-  height: 48px;
+  width: 54px;
+  height: 54px;
   object-fit: contain;
-  filter: drop-shadow(0 0 5px rgba(247, 181, 0, 0.2));
+  background: radial-gradient(circle, rgba(247, 181, 0, 0.25) 0%, transparent 85%);
+  padding: 6px;
+  border-radius: 50%;
+  filter: drop-shadow(0 0 12px rgba(247, 181, 0, 0.35));
 }
 
 .weapon-info .name {
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 800;
   color: var(--text-primary);
   display: block;
-}
-
-.weapon-info .count {
-  font-size: 12px;
-  color: var(--primary);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  white-space: nowrap;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.5);
 }
 
 .map-card {

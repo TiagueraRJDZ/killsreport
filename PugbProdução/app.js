@@ -9,12 +9,12 @@ import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit } from
 import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyA_aDw11Cx-Shs4jZ4LcWGO5Ou9iDnGdzw",
-  authDomain: "pugb-egoteam.firebaseapp.com",
-  projectId: "pugb-egoteam",
-  storageBucket: "pugb-egoteam.firebasestorage.app",
-  messagingSenderId: "191418899183",
-  appId: "1:191418899183:web:833ad403d0f07bd2e5991a"
+    apiKey: "AIzaSyA_aDw11Cx-Shs4jZ4LcWGO5Ou9iDnGdzw",
+    authDomain: "pugb-egoteam.firebaseapp.com",
+    projectId: "pugb-egoteam",
+    storageBucket: "pugb-egoteam.firebasestorage.app",
+    messagingSenderId: "191418899183",
+    appId: "1:191418899183:web:833ad403d0f07bd2e5991a"
 };
 
 // Initialize Firebase
@@ -28,92 +28,92 @@ const BASE_URL = "https://api.pubg.com/shards/";
 
 
 const ID_NAMES = {
-  "AIPawn_Base_Female_C": "Bot",
-  "AIPawn_Base_Male_C": "Bot",
-  "AirBoat_V2_C": "Hidroavião",
-  "AquaRail_A_01_C": "Aquarail",
-  "BP_ATV_C": "Quadriciclo",
-  "BP_BearV2_C": "Urso",
-  "BP_BRDM_C": "BRDM-2",
-  "BP_Bicycle_C": "Bicicleta",
-  "BP_CoupeRB_C": "Coupe RB",
-  "BP_Dirtbike_C": "Moto de Trilha",
-  "BP_IncendiaryDebuff_C": "Queimadura",
-  "BP_LootTruck_C": "Caminhão de Loot",
-  "BP_Motorbike_04_C": "Motocicleta",
-  "BP_Motorglider_C": "Planador",
-  "BP_PickupTruck_A_01_C": "Picape",
-  "BP_PonyCoupe_C": "Pony Coupe",
-  "BP_Scooter_01_A_C": "Scooter",
-  "BP_Snowbike_01_C": "Moto de Neve",
-  "BP_Snowmobile_01_C": "Snowmobile",
-  "BP_Van_A_01_C": "Van",
-  "BattleRoyaleModeController_Def_C": "Zona Azul",
-  "Buff_DecreaseBreathInApnea_C": "Afogamento",
-  "Carepackage_Container_C": "Caixa de Suprimentos",
-  "Dacia_A_01_v2_C": "Dacia",
-  "Jerrycan": "Galão de Combustível",
-  "Lava": "Lava",
-  "PlayerFemale_A_C": "Jogador",
-  "PlayerMale_A_C": "Jogador",
-  "ProjC4_C": "C4",
-  "ProjGrenade_C": "Granada de Fragmentação",
-  "ProjMolotov_C": "Coquetel Molotov",
-  "ProjStickyGrenade_C": "Bomba Adesiva",
-  "ProjFlashBang_C": "Flashbang",
-  "ProjSmokeBomb_C": "Granada de Fumaça",
-  "ProjDecoyGrenade_C": "Granada de Distração",
-  "ProjBluezoneGrenade_C": "Granada Bluezone",
-  "ProjSpikeTrap_C": "Armadilha de Espinhos",
-  "RedZoneBomb_C": "Zona Vermelha",
-  "WeapACE32_C": "ACE32",
-  "WeapAK47_C": "AKM",
-  "WeapAUG_C": "AUG A3",
-  "WeapAWM_C": "AWM",
-  "WeapBerreta686_C": "S686",
-  "WeapBerylM762_C": "Beryl",
-  "WeapBizonPP19_C": "Bizon",
-  "WeapCrossbow_1_C": "Besta",
-  "WeapDP12_C": "DBS",
-  "WeapDP28_C": "DP-28",
-  "WeapDesertEagle_C": "Deagle",
-  "WeapDragunov_C": "Dragunov",
-  "WeapHK416_C": "M416",
-  "WeapJS9_C": "JS9",
-  "WeapK2_C": "K2",
-  "WeapKar98k_C": "Kar98k",
-  "WeapM16A4_C": "M16A4",
-  "WeapM1911_C": "P1911",
-  "WeapM249_C": "M249",
-  "WeapM24_C": "M24",
-  "WeapM9_C": "P92",
-  "WeapMG3_C": "MG3",
-  "WeapMP5K_C": "MP5K",
-  "WeapMP9_C": "MP9",
-  "WeapMini14_C": "Mini 14",
-  "WeapMk12_C": "Mk12",
-  "WeapMk14_C": "Mk14 EBR",
-  "WeapMk47Mutant_C": "Mk47 Mutant",
-  "WeapMosinNagant_C": "Mosin-Nagant",
-  "WeapNagantM1895_C": "R1895",
-  "WeapOriginS12_C": "O12",
-  "WeapP90_C": "P90",
-  "WeapPan_C": "Frigideira",
-  "WeapPanzerFaust100M1_C": "Panzerfaust",
-  "WeapQBU88_C": "QBU88",
-  "WeapQBZ95_C": "QBZ95",
-  "WeapRhino_C": "R45",
-  "WeapSCAR-L_C": "SCAR-L",
-  "WeapSKS_C": "SKS",
-  "WeapSaiga12_C": "S12K",
-  "WeapSawnoff_C": "Cano Cerrado",
-  "WeapThompson_C": "Tommy Gun",
-  "WeapUMP_C": "UMP45",
-  "WeapUZI_C": "Micro Uzi",
-  "WeapVSS_C": "VSS",
-  "WeapVector_C": "Vector",
-  "WeapWin94_C": "Win94",
-  "WeapWinchester_C": "S1897"
+    "AIPawn_Base_Female_C": "Bot",
+    "AIPawn_Base_Male_C": "Bot",
+    "AirBoat_V2_C": "Hidroavião",
+    "AquaRail_A_01_C": "Aquarail",
+    "BP_ATV_C": "Quadriciclo",
+    "BP_BearV2_C": "Urso",
+    "BP_BRDM_C": "BRDM-2",
+    "BP_Bicycle_C": "Bicicleta",
+    "BP_CoupeRB_C": "Coupe RB",
+    "BP_Dirtbike_C": "Moto de Trilha",
+    "BP_IncendiaryDebuff_C": "Queimadura",
+    "BP_LootTruck_C": "Caminhão de Loot",
+    "BP_Motorbike_04_C": "Motocicleta",
+    "BP_Motorglider_C": "Planador",
+    "BP_PickupTruck_A_01_C": "Picape",
+    "BP_PonyCoupe_C": "Pony Coupe",
+    "BP_Scooter_01_A_C": "Scooter",
+    "BP_Snowbike_01_C": "Moto de Neve",
+    "BP_Snowmobile_01_C": "Snowmobile",
+    "BP_Van_A_01_C": "Van",
+    "BattleRoyaleModeController_Def_C": "Zona Azul",
+    "Buff_DecreaseBreathInApnea_C": "Afogamento",
+    "Carepackage_Container_C": "Caixa de Suprimentos",
+    "Dacia_A_01_v2_C": "Dacia",
+    "Jerrycan": "Galão de Combustível",
+    "Lava": "Lava",
+    "PlayerFemale_A_C": "Jogador",
+    "PlayerMale_A_C": "Jogador",
+    "ProjC4_C": "C4",
+    "ProjGrenade_C": "Granada de Fragmentação",
+    "ProjMolotov_C": "Coquetel Molotov",
+    "ProjStickyGrenade_C": "Bomba Adesiva",
+    "ProjFlashBang_C": "Flashbang",
+    "ProjSmokeBomb_C": "Granada de Fumaça",
+    "ProjDecoyGrenade_C": "Granada de Distração",
+    "ProjBluezoneGrenade_C": "Granada Bluezone",
+    "ProjSpikeTrap_C": "Armadilha de Espinhos",
+    "RedZoneBomb_C": "Zona Vermelha",
+    "WeapACE32_C": "ACE32",
+    "WeapAK47_C": "AKM",
+    "WeapAUG_C": "AUG A3",
+    "WeapAWM_C": "AWM",
+    "WeapBerreta686_C": "S686",
+    "WeapBerylM762_C": "Beryl",
+    "WeapBizonPP19_C": "Bizon",
+    "WeapCrossbow_1_C": "Besta",
+    "WeapDP12_C": "DBS",
+    "WeapDP28_C": "DP-28",
+    "WeapDesertEagle_C": "Deagle",
+    "WeapDragunov_C": "Dragunov",
+    "WeapHK416_C": "M416",
+    "WeapJS9_C": "JS9",
+    "WeapK2_C": "K2",
+    "WeapKar98k_C": "Kar98k",
+    "WeapM16A4_C": "M16A4",
+    "WeapM1911_C": "P1911",
+    "WeapM249_C": "M249",
+    "WeapM24_C": "M24",
+    "WeapM9_C": "P92",
+    "WeapMG3_C": "MG3",
+    "WeapMP5K_C": "MP5K",
+    "WeapMP9_C": "MP9",
+    "WeapMini14_C": "Mini 14",
+    "WeapMk12_C": "Mk12",
+    "WeapMk14_C": "Mk14 EBR",
+    "WeapMk47Mutant_C": "Mk47 Mutant",
+    "WeapMosinNagant_C": "Mosin-Nagant",
+    "WeapNagantM1895_C": "R1895",
+    "WeapOriginS12_C": "O12",
+    "WeapP90_C": "P90",
+    "WeapPan_C": "Frigideira",
+    "WeapPanzerFaust100M1_C": "Panzerfaust",
+    "WeapQBU88_C": "QBU88",
+    "WeapQBZ95_C": "QBZ95",
+    "WeapRhino_C": "R45",
+    "WeapSCAR-L_C": "SCAR-L",
+    "WeapSKS_C": "SKS",
+    "WeapSaiga12_C": "S12K",
+    "WeapSawnoff_C": "Cano Cerrado",
+    "WeapThompson_C": "Tommy Gun",
+    "WeapUMP_C": "UMP45",
+    "WeapUZI_C": "Micro Uzi",
+    "WeapVSS_C": "VSS",
+    "WeapVector_C": "Vector",
+    "WeapWin94_C": "Win94",
+    "WeapWinchester_C": "S1897"
 };
 
 const FRIENDS = ["TIAGUERArjdz", "Alis00n", "M4LW4RE-", "LillWhind", "DeLLano_", "VZN-exe", "chicoTUF"];
@@ -125,7 +125,7 @@ let currentAggregatedData = {}; // Global store for click-to-update dashboard
 document.addEventListener('DOMContentLoaded', () => {
     const searchBtn = document.getElementById('searchBtn');
     const playerInput = document.getElementById('playerInput');
-    
+
     // Press enter to search
     playerInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') loadPlayerData(playerInput.value);
@@ -136,7 +136,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function loadPlayerData(nickname) {
     if (!nickname) return;
-    
+
     setLoading(true);
     resetStats();
 
@@ -146,22 +146,22 @@ async function loadPlayerData(nickname) {
         const pResponse = await fetch(`${BASE_URL}${SHARD}/players?filter[playerNames]=${searchNames}`, {
             headers: { Authorization: API_KEY, Accept: "application/vnd.api+json" }
         });
-        
+
         if (!pResponse.ok) throw new Error("Erro na API ao buscar jogadores.");
-        
+
         const pData = await pResponse.json();
         const allPlayers = pData.data || [];
-        
+
         // Find searched player
         const mainPlayer = allPlayers.find(p => p.attributes.name.toLowerCase() === nickname.toLowerCase());
         if (!mainPlayer) throw new Error("Jogador '" + nickname + "' não encontrado.");
-        
+
         const playerId = mainPlayer.id;
         const officialName = mainPlayer.attributes.name;
 
         // --- AGGREGATE UNIQUE MATCHES FOR HALL OF FAME ---
         const allMatchIds = new Set();
-        
+
         allPlayers.forEach(p => {
             const mData = p.relationships?.matches?.data || [];
             // Get up to 50 matches for each to ensure we find at least 20 official ones (ignoring arcade/TDM)
@@ -171,7 +171,7 @@ async function loadPlayerData(nickname) {
         const uniqueMatchIds = Array.from(allMatchIds);
 
         // Process everything (showing last 20 games of each player)
-        await loadMatchHistoryWithFilter(uniqueMatchIds, playerId, officialName); 
+        await loadMatchHistoryWithFilter(uniqueMatchIds, playerId, officialName);
 
     } catch (err) {
         console.error(err);
@@ -203,7 +203,7 @@ async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
     // FIX: Fetch match details in chunks to avoid API rate limits (429 Too Many Requests)
     const matchDetailsRaw = [];
     const chunkSize = 20;
-    
+
     for (let i = 0; i < matchIds.length; i += chunkSize) {
         const chunk = matchIds.slice(i, i + chunkSize);
         const promises = chunk.map(async (id) => {
@@ -220,7 +220,7 @@ async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
         });
         const chunkResults = await Promise.all(promises);
         matchDetailsRaw.push(...chunkResults);
-        
+
         // Minor delay between chunks if we have more to process
         if (i + chunkSize < matchIds.length) {
             await new Promise(resolve => setTimeout(resolve, 300));
@@ -254,13 +254,13 @@ async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
         }
 
         // Find players we care about for the Hall of Fame (EgoTeam + Searched Player)
-        const myPlayersInMatch = (m.included || []).filter(inc => 
-            inc.type === "participant" && 
+        const myPlayersInMatch = (m.included || []).filter(inc =>
+            inc.type === "participant" &&
             (FRIENDS.includes(inc.attributes?.stats?.name) || inc.attributes?.stats?.name === officialName)
         );
 
         // Find friends STRICTLY in EgoTeam (for purely EgoTeam comparisons like Versus)
-        const friendsInMatch = (m.included || []).filter(inc => 
+        const friendsInMatch = (m.included || []).filter(inc =>
             inc.type === "participant" && FRIENDS.includes(inc.attributes?.stats?.name)
         );
 
@@ -272,22 +272,22 @@ async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
             myPlayersInMatch.forEach(p => {
                 const name = p.attributes.stats.name;
                 if (!hallOfFameAggr[name]) {
-                    hallOfFameAggr[name] = { kills: 0, damage: 0, assists: 0, neymar: 0, time: 0, matches: 0, headshots: 0, deaths: 0, wins: 0, history: [] };
+                    hallOfFameAggr[name] = { kills: 0, damage: 0, assists: 0, neymar: 0, time: 0, matches: 0, headshots: 0, deaths: 0, wins: 0, history: [], weapons: {} };
                 }
                 // Only count the last 20 matches PER PLAYER
                 if (hallOfFameAggr[name].matches < 20) {
-                    
-                    const myRoster = rosters.find(r => 
+
+                    const myRoster = rosters.find(r =>
                         r.relationships?.participants?.data?.some(participant => participant.id === p.id)
                     );
-                    
+
                     let friendsTeammates = [];
                     let randomTeammates = [];
 
                     if (myRoster) {
                         const participantIds = myRoster.relationships.participants.data.map(d => d.id);
                         const rosterParticipants = allParticipantsList.filter(inc => participantIds.includes(inc.id));
-                        
+
                         // Collect Friend Teammates with Stats
                         friendsTeammates = rosterParticipants
                             .filter(rp => rp.attributes.stats.name !== name && FRIENDS.includes(rp.attributes.stats.name))
@@ -318,13 +318,13 @@ async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
                     hallOfFameAggr[name].neymar += p.attributes.stats.DBNOs;
                     hallOfFameAggr[name].time += Math.floor(p.attributes.stats.timeSurvived);
                     hallOfFameAggr[name].headshots += p.attributes.stats.headshotKills || 0;
-                    
+
                     const died = (p.attributes.stats.winPlace === 1 || p.attributes.stats.winPlace === "1") ? 0 : 1;
                     hallOfFameAggr[name].deaths += died;
                     if (died === 0) hallOfFameAggr[name].wins++;
-                    
+
                     hallOfFameAggr[name].matches++;
-                    
+
                     hallOfFameAggr[name].history.push({
                         matchId: matchData.id,
                         fullDate: matchData.attributes.createdAt,
@@ -347,8 +347,8 @@ async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
             });
         }
 
-            // --- TEAM COMPETITION LOGIC (Shared matches only) ---
-            if (friendsInMatch.length > 1) {
+        // --- TEAM COMPETITION LOGIC (Shared matches only) ---
+        if (friendsInMatch.length > 1) {
             const teamStats = friendsInMatch.map(p => ({
                 name: p.attributes.stats.name,
                 kills: p.attributes.stats.kills,
@@ -369,10 +369,10 @@ async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
         matchCount++;
 
         // --- BASE STATS AGGREGATION ---
-        const participant = m.included?.find(inc => 
-            inc.type === "participant" && 
-            (inc.relationships?.player?.data?.id === playerId || 
-             inc.attributes?.stats?.name === officialName)
+        const participant = m.included?.find(inc =>
+            inc.type === "participant" &&
+            (inc.relationships?.player?.data?.id === playerId ||
+                inc.attributes?.stats?.name === officialName)
         );
 
         if (participant) {
@@ -382,7 +382,7 @@ async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
             totalDamage += Math.round(pStats.damageDealt);
             totalDeaths += (pStats.winPlace === 1 || pStats.winPlace === "1") ? 0 : 1;
             headshots += pStats.headshotKills || 0;
-            kdHistory.push({ fullDate: matchData.attributes.createdAt, kills: pStats.kills });
+            kdHistory.push({ fullDate: matchData.attributes.createdAt, kills: 0 }); // Placeholder, filled later with real player kills
         }
 
     }
@@ -415,7 +415,7 @@ async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
                 const tResponse = await fetch(task.url);
                 if (!tResponse.ok) return;
                 const logs = await tResponse.json();
-                
+
                 // Build a case-insensitive lookup map for HoF players (computed once per task)
                 const hofNameMap = {};
                 Object.keys(hallOfFameAggr).forEach(n => { hofNameMap[n.toLowerCase()] = n; });
@@ -447,7 +447,7 @@ async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
                     const m = Math.floor(Math.max(0, elapsedMs) / 60000);
                     const s = Math.floor((Math.max(0, elapsedMs) % 60000) / 1000);
                     const timeStamp = `${m}:${s.toString().padStart(2, '0')}`;
-                    
+
                     // --- TEAM/SQUAD EVENT TRACKING ---
                     const attackerName = e.attacker?.name;
                     const killerName = e.killer?.name || e.damageCauserName || e.damageReason || attackerName;
@@ -461,36 +461,36 @@ async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
                     if (e._T === "LogPlayerKillV2" && victimName) {
                         const isHS = kDI?.damageReason === "HeadShot" || e.damageReason === "HeadShot";
                         if (hfMapK) {
-                             const entry = (hallOfFameAggr[hfMapK].history || []).find(h => h.matchId === task.matchId);
-                             if (entry) {
-                                 if (!entry.timeline) entry.timeline = [];
-                                 entry.timeline.push({ type: 'kill', time: timeStamp, killer: killerName, victim: victimName, weapon: ID_NAMES[weapon] || weapon || 'Desconhecido', headshot: isHS });
-                             }
+                            const entry = (hallOfFameAggr[hfMapK].history || []).find(h => h.matchId === task.matchId);
+                            if (entry) {
+                                if (!entry.timeline) entry.timeline = [];
+                                entry.timeline.push({ type: 'kill', time: timeStamp, killer: killerName, victim: victimName, weapon: ID_NAMES[weapon] || weapon || 'Desconhecido', headshot: isHS });
+                            }
                         }
                         if (hfMapV) {
-                             const entry = (hallOfFameAggr[hfMapV].history || []).find(h => h.matchId === task.matchId);
-                             if (entry) {
-                                 if (!entry.timeline) entry.timeline = [];
-                                 entry.timeline.push({ type: 'death', time: timeStamp, killer: killerName, victim: victimName, weapon: ID_NAMES[weapon] || weapon || 'Desconhecido', headshot: isHS });
-                             }
+                            const entry = (hallOfFameAggr[hfMapV].history || []).find(h => h.matchId === task.matchId);
+                            if (entry) {
+                                if (!entry.timeline) entry.timeline = [];
+                                entry.timeline.push({ type: 'death', time: timeStamp, killer: killerName, victim: victimName, weapon: ID_NAMES[weapon] || weapon || 'Desconhecido', headshot: isHS });
+                            }
                         }
                     }
 
                     // KNOCKOUTS (Team or User)
                     if (e._T === "LogPlayerMakeDamageV2" && e.isFatal && victimName) {
                         if (hfMapK) {
-                             const entry = (hallOfFameAggr[hfMapK].history || []).find(h => h.matchId === task.matchId);
-                             if (entry) {
-                                 if (!entry.timeline) entry.timeline = [];
-                                 entry.timeline.push({ type: 'knock', time: timeStamp, killer: killerName, victim: victimName });
-                             }
+                            const entry = (hallOfFameAggr[hfMapK].history || []).find(h => h.matchId === task.matchId);
+                            if (entry) {
+                                if (!entry.timeline) entry.timeline = [];
+                                entry.timeline.push({ type: 'knock', time: timeStamp, killer: killerName, victim: victimName });
+                            }
                         }
                         if (hfMapV) {
-                             const entry = (hallOfFameAggr[hfMapV].history || []).find(h => h.matchId === task.matchId);
-                             if (entry) {
-                                 if (!entry.timeline) entry.timeline = [];
-                                 entry.timeline.push({ type: 'get_knocked', time: timeStamp, killer: killerName, victim: victimName });
-                             }
+                            const entry = (hallOfFameAggr[hfMapV].history || []).find(h => h.matchId === task.matchId);
+                            if (entry) {
+                                if (!entry.timeline) entry.timeline = [];
+                                entry.timeline.push({ type: 'get_knocked', time: timeStamp, killer: killerName, victim: victimName });
+                            }
                         }
                     }
 
@@ -500,41 +500,44 @@ async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
                         const hfMapR = reviverName ? hofNameMap[reviverName.toLowerCase()] : null;
 
                         if (hfMapV) {
-                             const entry = (hallOfFameAggr[hfMapV].history || []).find(h => h.matchId === task.matchId);
-                             if (entry) {
-                                 if (!entry.timeline) entry.timeline = [];
-                                 entry.timeline.push({ type: 'revive', time: timeStamp, reviver: reviverName || 'Companheiro', victim: victimName });
-                             }
+                            const entry = (hallOfFameAggr[hfMapV].history || []).find(h => h.matchId === task.matchId);
+                            if (entry) {
+                                if (!entry.timeline) entry.timeline = [];
+                                entry.timeline.push({ type: 'revive', time: timeStamp, reviver: reviverName || 'Companheiro', victim: victimName });
+                            }
                         }
                         if (hfMapR) {
-                             const entry = (hallOfFameAggr[hfMapR].history || []).find(h => h.matchId === task.matchId);
-                             if (entry) {
-                                 if (!entry.timeline) entry.timeline = [];
-                                 entry.timeline.push({ type: 'revive_other', time: timeStamp, reviver: reviverName, victim: victimName });
-                             }
+                            const entry = (hallOfFameAggr[hfMapR].history || []).find(h => h.matchId === task.matchId);
+                            if (entry) {
+                                if (!entry.timeline) entry.timeline = [];
+                                entry.timeline.push({ type: 'revive_other', time: timeStamp, reviver: reviverName, victim: victimName });
+                            }
                         }
                     }
 
                     // --- ORIGINAL COUNT LOGIC (Remains same) ---
                     if (e._T === "LogPlayerKillV2") {
-                        const killerLower = killerName ? killerName.toLowerCase() : "";
                         const victimLower = victimName.toLowerCase();
-                        if (killerLower === officialName.toLowerCase() && weapon) {
-                            weapons[weapon] = (weapons[weapon] || 0) + 1;
-                        }
                         if (hfMapK) {
-                            const isBot = (e.victim?.character?.name || '').toLowerCase().includes('aipawn') || 
-                                        (e.victim?.accountId || '').startsWith('ai.') || 
-                                        botNamesInMatch.has(victimLower);
-                            const hEntry = (hallOfFameAggr[hfMapK].history || []).find(h => h.matchId === task.matchId);
-                            if (hEntry) {
-                                if (hEntry.botKills === null) hEntry.botKills = 0; if (hEntry.playerKills === null) hEntry.playerKills = 0;
-                                if (isBot) { hEntry.botKills++; hEntry.botVictims.push(victimName); } else { hEntry.playerKills++; hEntry.playerVictims.push(victimName); }
+                            const pDataK = hallOfFameAggr[hfMapK];
+                            const isBot = (e.victim?.character?.name || '').toLowerCase().includes('aipawn') ||
+                                (e.victim?.accountId || '').startsWith('ai.') ||
+                                botNamesInMatch.has(victimLower);
+
+                            const hEntryK = (pDataK.history || []).find(h => h.matchId === task.matchId);
+                            if (hEntryK) {
+                                // Aggregating real weapons kills (players only) for the HoF player strictly for their last 20 matches
+                                if (!isBot && weapon) {
+                                    pDataK.weapons[weapon] = (pDataK.weapons[weapon] || 0) + 1;
+                                }
+
+                                if (hEntryK.botKills === null) hEntryK.botKills = 0; if (hEntryK.playerKills === null) hEntryK.playerKills = 0;
+                                if (isBot) { hEntryK.botKills++; hEntryK.botVictims.push(victimName); } else { hEntryK.playerKills++; hEntryK.playerVictims.push(victimName); }
                             }
                         }
                         if (hfMapV) {
-                            const hEntry = (hallOfFameAggr[hfMapV].history || []).find(h => h.matchId === task.matchId);
-                            if (hEntry && killerName) hEntry.killerOfUser = killerName;
+                            const hEntryV = (hallOfFameAggr[hfMapV].history || []).find(h => h.matchId === task.matchId);
+                            if (hEntryV && killerName) hEntryV.killerOfUser = killerName;
                         }
                     }
                 });
@@ -548,8 +551,8 @@ async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
     Object.values(hallOfFameAggr).forEach(pData => {
         pData.realKillsTotal = 0;
         pData.history.forEach(h => {
-             // Use 0 if telemetry failed or no kills
-             pData.realKillsTotal += (h.playerKills || 0);
+            // Use 0 if telemetry failed or no kills
+            pData.realKillsTotal += (h.playerKills || 0);
         });
     });
 
@@ -565,10 +568,15 @@ async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
     // Removed redundant direct updates, now using updateDashboard
     renderWeapons(weapons);
 
-    // Sort KD history chronologically for the chart (oldest to newest)
-    kdHistory.sort((a, b) => new Date(a.fullDate) - new Date(b.fullDate)); 
-    const sortedKdHistory = kdHistory.slice(-10).map(k => k.kills);
-    renderProgressionChart(sortedKdHistory);
+    // Sort and finalize KD history using real player kills for the chart
+    const officialHistory = (hallOfFameAggr[officialName]?.history || []);
+    const chartData = officialHistory
+        .map(h => ({ fullDate: h.fullDate, kills: h.playerKills || 0 }))
+        .sort((a, b) => new Date(a.fullDate) - new Date(b.fullDate))
+        .slice(-20)
+        .map(k => k.kills);
+
+    renderProgressionChart(chartData);
 }
 
 function updateDashboard(playerName) {
@@ -582,50 +590,79 @@ function updateDashboard(playerName) {
 
     updateText('killsVal', realKills);
     updateText('kdVal', kd);
-    updateText('winsVal', stats.wins); 
+    updateText('winsVal', stats.wins);
     updateText('matchesVal', stats.matches);
     updateText('damageVal', avgDmg);
     updateText('hsVal', hs + "%");
-    
+
+    // Update Elite Arsenal for this specific player (non-bot kills)
+    renderWeapons(stats.weapons || {});
+
     document.getElementById("statsTypeLabel").innerText = `(${playerName})`;
 }
 
 function renderWeapons(data) {
-    const sorted = Object.entries(data)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 6);
+    // 1. Group by count to handle ties
+    const groups = {};
+    Object.entries(data).forEach(([id, count]) => {
+        if (!groups[count]) groups[count] = [];
+        groups[count].push(id);
+    });
+
+    // 2. Select top 10 unique counts (Tiers)
+    const sortedCounts = Object.keys(groups)
+        .map(Number)
+        .sort((a, b) => b - a)
+        .slice(0, 10);
 
     const container = document.getElementById("weaponsGrid");
-    if (sorted.length === 0) {
-        container.innerHTML = `<p style="color: grey; font-size: 14px; grid-column: 1/-1; text-align: center;">Nenhuma partida encontrada.</p>`;
+    if (!container) return;
+
+    // Use flex container instead of grid-small for grouping
+    container.className = "weapons-container";
+
+    if (sortedCounts.length === 0) {
+        container.innerHTML = '<p style="color: grey; font-size: 14px; text-align: center; padding: 20px;">Nenhum abate registrado.</p>';
         return;
     }
 
-    container.innerHTML = sorted.map(([id, count]) => {
-        // Use ID_NAMES for display name, fallback to cleaned ID
-        const displayName = ID_NAMES[id] || id.replace('Item_Weapon_', '').replace('Weap', '').replace('_C', '').replace('BP_', '');
-        
-        let imgUrl = "";
-        if (id.startsWith('Proj')) {
-            // Throwable logic: Assets/Item/Equipment/Throwable/Item_Weapon_NAME_C.png
-            const imgId = id.replace('Proj', 'Item_Weapon_');
-            imgUrl = `https://raw.githubusercontent.com/pubg/api-assets/master/Assets/Item/Equipment/Throwable/${imgId}.png`;
-        } else {
-            // Standard Weapon logic: Assets/Item/Weapon/Main/Item_Weapon_NAME_C.png
-            const imgId = id.replace('Weap', 'Item_Weapon_').split('_C')[0] + '_C';
-            const finalImgId = imgId.startsWith('Item_Weapon_') ? imgId : 'Item_Weapon_' + imgId;
-            imgUrl = `https://raw.githubusercontent.com/pubg/api-assets/master/Assets/Item/Weapon/Main/${finalImgId}.png`;
-        }
-        
+    container.innerHTML = sortedCounts.map(countValue => {
+        const weaponIds = groups[countValue];
+        const label = countValue === 1 ? "1 Abate" : `${countValue} Abates`;
+
+        const weaponsHtml = weaponIds.map(id => {
+            const displayName = ID_NAMES[id] || id.replace('Item_Weapon_', '').replace('Weap', '').replace('_C', '').replace('BP_', '');
+
+            // Generate icon URL logic
+            let imgUrl = "";
+            if (id.startsWith('Proj')) {
+                const imgId = id.replace('Proj', 'Item_Weapon_').split('_C')[0] + '_C';
+                imgUrl = `https://raw.githubusercontent.com/pubg/api-assets/master/Assets/Item/Equipment/Throwable/${imgId}.png`;
+            } else {
+                const imgId = id.replace('Weap', 'Item_Weapon_').split('_C')[0] + '_C';
+                const finalImgId = imgId.startsWith('Item_Weapon_') ? imgId : 'Item_Weapon_' + imgId;
+                imgUrl = `https://raw.githubusercontent.com/pubg/api-assets/master/Assets/Item/Weapon/Main/${finalImgId}.png`;
+            }
+
+            return `
+                <div class="weapon-card">
+                    <img src="${imgUrl}" alt="${displayName}" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3222/3222718.png';">
+                    <div class="weapon-info">
+                        <span class="name">${displayName}</span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
         return `
-        <div class="weapon-card">
-            <img src="${imgUrl}" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3222/3222718.png'">
-            <div class="weapon-info">
-                <span class="name">${displayName}</span>
-                <span class="count">${count} Abates</span>
+            <div class="weapon-tier-row">
+                <div class="tier-header">${label}</div>
+                <div class="tier-weapons">
+                    ${weaponsHtml}
+                </div>
             </div>
-        </div>
-    `}).join('');
+        `;
+    }).join('');
 }
 
 function renderProgressionChart(data) {
@@ -691,7 +728,7 @@ function resetStats() {
 function renderHallOfFame(data) {
     const section = document.getElementById("hallOfFameSection");
     const container = document.getElementById("hallOfFameContainer");
-    
+
     const players = Object.entries(data);
     if (players.length === 0) {
         section.style.display = "none";
@@ -699,7 +736,7 @@ function renderHallOfFame(data) {
     }
 
     section.style.display = "block";
-    
+
     // Sort historical matches by date (Newest first)
     players.forEach(([_, stats]) => {
         if (stats.history) {
@@ -708,7 +745,7 @@ function renderHallOfFame(data) {
     });
 
     // Sort by Real Kills (primary) and Damage (secondary)
-    const sorted = players.sort((a,b) => (b[1].realKillsTotal || 0) - (a[1].realKillsTotal || 0) || b[1].damage - a[1].damage);
+    const sorted = players.sort((a, b) => (b[1].realKillsTotal || 0) - (a[1].realKillsTotal || 0) || b[1].damage - a[1].damage);
 
     const rows = sorted.map(([name, stats], index) => {
         const timeH = Math.floor(stats.time / 3600);
@@ -748,17 +785,17 @@ function renderHallOfFame(data) {
                 const diffMs = new Date() - d;
                 const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
                 const diffMins = Math.floor(diffMs / (1000 * 60));
-                
+
                 let agoStr = "";
                 if (diffHrs < 1) agoStr = `${diffMins}m atrás`;
                 else if (diffHrs < 24) agoStr = `${diffHrs}h atrás`;
-                else agoStr = `${Math.floor(diffHrs/24)}d atrás`;
+                else agoStr = `${Math.floor(diffHrs / 24)}d atrás`;
 
                 const day = String(d.getDate()).padStart(2, '0');
                 const month = String(d.getMonth() + 1).padStart(2, '0');
                 const hrs = String(d.getHours()).padStart(2, '0');
                 const mins = String(d.getMinutes()).padStart(2, '0');
-                
+
                 timeStr = `<div style="line-height: 1.2;">${day}/${month} ${hrs}:${mins} <span style="color:#555; display:block; font-size:10px;">${agoStr}</span></div>`;
             }
 
@@ -771,10 +808,10 @@ function renderHallOfFame(data) {
             } else {
                 modeIcon = `<div style="display: flex; justify-content: center; align-items: center; min-width: 45px;">${userSvg}</div>`;
             }
-            
+
             let teammatesHtml = '';
-            const matchRowId = `match-${safeId}-${(Math.random()*10000).toFixed(0)}`;
-            
+            const matchRowId = `match-${safeId}-${(Math.random() * 10000).toFixed(0)}`;
+
             // Ego Team Section
             let egoHtml = '';
             if (h.friendsTeammates && h.friendsTeammates.length > 0) {
@@ -832,7 +869,7 @@ function renderHallOfFame(data) {
             }
 
             const playerVictimsJson = JSON.stringify(h.playerVictims || []).replace(/"/g, '&quot;');
-            const botVictimsJson    = JSON.stringify(h.botVictims    || []).replace(/"/g, '&quot;');
+            const botVictimsJson = JSON.stringify(h.botVictims || []).replace(/"/g, '&quot;');
 
             return `
             <tr style="border-bottom: 1px solid #222;">
@@ -951,7 +988,7 @@ function togglePlayerHistory(safeId, playerName) {
     if (!isAlreadyOpen) {
         historyRow.style.display = 'table-row';
     }
-    
+
     // Always update dashboard stats at the top
     updateDashboard(playerName);
 }
@@ -1034,7 +1071,7 @@ function toggleVersusAll(containerId, me, teammates) {
     container.style.display = 'table-row';
 
     const allPlayers = [me, ...teammates];
-    
+
     // Header for the table
     let headerHtml = `<th style="text-align: left; padding: 12px 8px; color: #666; font-size: 10px; width: 150px;">JOGADOR</th>`;
     headerHtml += `<th style="text-align: center; color: var(--primary); font-size: 10px; width: 80px;">KILLS</th>`;
@@ -1089,7 +1126,7 @@ window.closeTimelineModal = closeTimelineModal;
 function openMatchTimeline(playerName, matchId) {
     const stats = currentAggregatedData[playerName];
     const match = stats?.history.find(h => h.matchId === matchId);
-    
+
     const modal = document.getElementById('timelineModal');
     const body = document.getElementById('timelineModalBody');
     if (!modal || !body) return;
@@ -1111,10 +1148,10 @@ function openMatchTimeline(playerName, matchId) {
 
         body.innerHTML = sorted.map((e, index) => {
             let icon = '⚪'; let title = ''; let desc = ''; let badge = '';
-            
-            switch(e.type) {
+
+            switch (e.type) {
                 case 'kill':
-                    icon = '🎯'; title = 'Inimigo Eliminado'; 
+                    icon = '🎯'; title = 'Inimigo Eliminado';
                     desc = `Eliminou <strong>${e.victim}</strong> usando ${e.weapon}${e.headshot ? ' <span style="color:#ffd700;">(HEADSHOT! 🎯)</span>' : ''}`;
                     badge = '<span class="timeline-badge badge-kill">Abate</span>';
                     break;
@@ -1185,7 +1222,7 @@ function openKillsModal(title, names, type, el) {
 
     const overlay = document.getElementById('killsModal');
     const titleEl = document.getElementById('killsModalTitle');
-    const bodyEl  = document.getElementById('killsModalBody');
+    const bodyEl = document.getElementById('killsModalBody');
     if (!overlay) return;
 
     // Position ABOVE the cell by default — arrow points down toward the cell
@@ -1210,7 +1247,7 @@ function openKillsModal(title, names, type, el) {
     }
 
     overlay.style.left = left + 'px';
-    overlay.style.top  = top  + 'px';
+    overlay.style.top = top + 'px';
 
     // Title
     titleEl.textContent = title;
@@ -1245,8 +1282,8 @@ function keepKillsModalOpen() {
 
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeKillsModal(0); });
 
-window.openKillsModal    = openKillsModal;
-window.closeKillsModal   = closeKillsModal;
+window.openKillsModal = openKillsModal;
+window.closeKillsModal = closeKillsModal;
 window.keepKillsModalOpen = keepKillsModalOpen;
 
 
