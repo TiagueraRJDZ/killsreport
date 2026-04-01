@@ -60,6 +60,11 @@ const ID_NAMES = {
   "ProjGrenade_C": "Granada de Fragmentação",
   "ProjMolotov_C": "Coquetel Molotov",
   "ProjStickyGrenade_C": "Bomba Adesiva",
+  "ProjFlashBang_C": "Flashbang",
+  "ProjSmokeBomb_C": "Granada de Fumaça",
+  "ProjDecoyGrenade_C": "Granada de Distração",
+  "ProjBluezoneGrenade_C": "Granada Bluezone",
+  "ProjSpikeTrap_C": "Armadilha de Espinhos",
   "RedZoneBomb_C": "Zona Vermelha",
   "WeapACE32_C": "ACE32",
   "WeapAK47_C": "AKM",
@@ -600,12 +605,17 @@ function renderWeapons(data) {
         // Use ID_NAMES for display name, fallback to cleaned ID
         const displayName = ID_NAMES[id] || id.replace('Item_Weapon_', '').replace('Weap', '').replace('_C', '').replace('BP_', '');
         
-        // Use the weapon internal name part for the image URL
-        const weaponId = id.includes('Item_Weapon_') ? id : `Item_Weapon_${id.replace('Weap', '').replace('BP_', '').split('_')[0]}_C`;
-        const imgId = id.replace('Weap', 'Item_Weapon_').split('_C')[0] + '_C';
-        
-        // Precise Path: Assets/Item/Weapon/Main/Item_Weapon_NAME_C.png
-        const imgUrl = `https://raw.githubusercontent.com/pubg/api-assets/master/Assets/Item/Weapon/Main/${imgId.startsWith('Item_Weapon_') ? imgId : 'Item_Weapon_' + imgId}.png`;
+        let imgUrl = "";
+        if (id.startsWith('Proj')) {
+            // Throwable logic: Assets/Item/Equipment/Throwable/Item_Weapon_NAME_C.png
+            const imgId = id.replace('Proj', 'Item_Weapon_');
+            imgUrl = `https://raw.githubusercontent.com/pubg/api-assets/master/Assets/Item/Equipment/Throwable/${imgId}.png`;
+        } else {
+            // Standard Weapon logic: Assets/Item/Weapon/Main/Item_Weapon_NAME_C.png
+            const imgId = id.replace('Weap', 'Item_Weapon_').split('_C')[0] + '_C';
+            const finalImgId = imgId.startsWith('Item_Weapon_') ? imgId : 'Item_Weapon_' + imgId;
+            imgUrl = `https://raw.githubusercontent.com/pubg/api-assets/master/Assets/Item/Weapon/Main/${finalImgId}.png`;
+        }
         
         return `
         <div class="weapon-card">
