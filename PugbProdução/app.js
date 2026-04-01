@@ -646,7 +646,9 @@ function renderWeapons(data) {
 
             return `
                 <div class="weapon-card">
-                    <img src="${imgUrl}" alt="${displayName}" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3222/3222718.png';">
+                    <div class="weapon-icon-wrapper">
+                        <img src="${imgUrl}" alt="${displayName}" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3222/3222718.png';">
+                    </div>
                     <div class="weapon-info">
                         <span class="name">${displayName}</span>
                     </div>

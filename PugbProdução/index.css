@@ -294,20 +294,60 @@ body {
   padding: 10px;
   transition: var(--transition);
   border: none;
+  cursor: pointer; /* Mãozinha no ponteiro */
 }
 
-.weapon-card:hover {
-  transform: translateY(-4px);
+.weapon-icon-wrapper {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  overflow: visible; /* glow should be visible outside if possible, but let's keep it tight */
 }
 
-.weapon-card img {
+/* The rotating orbit glow */
+.weapon-icon-wrapper {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.weapon-icon-wrapper img {
   width: 54px;
   height: 54px;
   object-fit: contain;
-  background: radial-gradient(circle, rgba(247, 181, 0, 0.25) 0%, transparent 85%);
-  padding: 6px;
-  border-radius: 50%;
-  filter: drop-shadow(0 0 12px rgba(247, 181, 0, 0.35));
+  filter: drop-shadow(0 0 5px rgba(247, 181, 0, 0.2)); /* Subtle base glow */
+  transition: filter 0.3s ease;
+  pointer-events: none;
+}
+
+.weapon-card:hover .weapon-icon-wrapper img {
+  animation: silhouette-orbit 3s ease-in-out infinite;
+  filter: drop-shadow(0 0 10px rgba(247, 181, 0, 0.6));
+}
+
+@keyframes silhouette-orbit {
+  0% { 
+    filter: drop-shadow(4px 0 5px rgba(247, 181, 0, 0.5)); 
+  }
+  25% { 
+    filter: drop-shadow(0 4px 8px rgba(247, 181, 0, 0.8)); 
+  }
+  50% { 
+    filter: drop-shadow(-4px 0 12px rgba(247, 181, 0, 0.5)); 
+  }
+  75% { 
+    filter: drop-shadow(0 -4px 8px rgba(247, 181, 0, 0.8)); 
+  }
+  100% { 
+    filter: drop-shadow(4px 0 5px rgba(247, 181, 0, 0.5)); 
+  }
 }
 
 .weapon-info .name {
@@ -318,7 +358,7 @@ body {
   text-transform: uppercase;
   letter-spacing: 1px;
   white-space: nowrap;
-  text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+  text-shadow: 0 2px 4px rgba(0,0,0,1);
 }
 
 .map-card {
