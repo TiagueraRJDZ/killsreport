@@ -44,6 +44,18 @@
         </div>
     </header>
 
+    <!-- Tab Navigation -->
+    <nav class="tab-navigation">
+        <button class="tab-btn active" data-tab="overview">
+            <span class="tab-icon">📊</span> Visão Geral
+        </button>
+        <button class="tab-btn" data-tab="wins-day">
+            <span class="tab-icon">🏆</span> Wins do Dia
+        </button>
+    </nav>
+
+    <div id="overview" class="tab-content active">
+
     <!-- Global Stats Overview -->
     <section class="card stats-overview">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
@@ -103,6 +115,24 @@
             <div id="weaponsGrid" class="grid-small">
                 <!-- Weapons will be injected here -->
                 <p style="color: grey; font-size: 14px;">Aguardando dados...</p>
+            </div>
+        </section>
+    </div>
+    </div> <!-- End of Overview Tab -->
+
+    <!-- Wins of the Day Tab -->
+    <div id="wins-day" class="tab-content">
+        <!-- Win Counter Highlight -->
+        <div id="winCountHighlight" class="win-count-highlight">
+            <!-- Will be injected by JS -->
+        </div>
+
+        <section class="card podium-section">
+            <h2>🏆 Pódio das Vitórias <span style="font-size: 12px; opacity: 0.6; margin-left: auto;">TOP PERFORMANCE HOJE</span></h2>
+            <div id="podiumContainer" class="podium-container">
+                <div style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                    Aguardando busca de dados...
+                </div>
             </div>
         </section>
     </div>

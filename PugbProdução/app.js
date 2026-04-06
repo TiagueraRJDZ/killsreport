@@ -132,6 +132,22 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     searchBtn.addEventListener('click', () => loadPlayerData(playerInput.value));
+
+    // Tab Switching Logic
+    const tabBtns = document.querySelectorAll('.tab-btn');
+    const tabContents = document.querySelectorAll('.tab-content');
+
+    tabBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const target = btn.dataset.tab;
+
+            tabBtns.forEach(b => b.classList.remove('active'));
+            tabContents.forEach(c => c.classList.remove('active'));
+
+            btn.classList.add('active');
+            document.getElementById(target).classList.add('active');
+        });
+    });
 });
 
 async function loadPlayerData(nickname) {
@@ -239,6 +255,10 @@ async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
     const hallOfFameAggr = {}; // { player: { kills: 0, damage: 0, ... } }
     let globalMatchesProcessed = 0;
     const telemetryTasks = [];
+    
+    // Daily Analysis Accumulators
+    const allWins = [];
+    const today = new Date().toISOString().split('T')[0];
 
     // 2. Process each match
     for (const m of matchDetails) {
@@ -341,7 +361,8 @@ async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
                         playerKills: null,
                         botVictims: [],
                         playerVictims: [],
-                        killerOfUser: null
+                        killerOfUser: null,
+                        playerNameForDaily: name
                     });
                 }
             });
@@ -553,12 +574,43 @@ async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
         pData.history.forEach(h => {
             // Use 0 if telemetry failed or no kills
             pData.realKillsTotal += (h.playerKills || 0);
+
+            // Gather all wins found in match history
+            if (h.died === 0) {
+                // Check if this match is already in allWins (squad wins are shared)
+                let winObj = allWins.find(w => w.matchId === h.matchId);
+                if (!winObj) {
+                    winObj = {
+                        matchId: h.matchId,
+                        time: h.fullDate,
+                        mode: h.mode,
+                        players: []
+                    };
+                    allWins.push(winObj);
+                }
+                
+                // Add this player to the participants list for this win
+                const pName = h.playerNameForDaily || Object.keys(hallOfFameAggr).find(key => hallOfFameAggr[key] === pData);
+                if (pName && !winObj.players.some(p => p.name === pName)) {
+                    winObj.players.push({
+                        name: pName,
+                        kills: h.playerKills || 0
+                    });
+                }
+            }
         });
     });
 
     document.getElementById("pageLoader").classList.remove("active");
     currentAggregatedData = hallOfFameAggr; // Save for clicking
     renderHallOfFame(hallOfFameAggr);
+
+    // Filter Wins of the Day for the Searched Player
+    const winsToday = allWins.filter(w => 
+        w.time.split('T')[0] === today && 
+        w.players.some(p => p.name === officialName)
+    );
+    renderWinRegistry(winsToday);
 
     // Default dashboard to searched player
     if (hallOfFameAggr[officialName]) {
@@ -1287,6 +1339,83 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeKillsMo
 window.openKillsModal = openKillsModal;
 window.closeKillsModal = closeKillsModal;
 window.keepKillsModalOpen = keepKillsModalOpen;
+
+function renderWinRegistry(wins) {
+    const container = document.getElementById('podiumContainer');
+    const highlight = document.getElementById('winCountHighlight');
+    
+    if (!container) return;
+
+    // Update Highlight (Total team wins today)
+    if (highlight) {
+        highlight.innerHTML = `
+            <div class="win-count-icon-bg">🏆</div>
+            <div class="win-count-content">
+                <span class="win-count-number">${wins.length}</span>
+                <span class="win-count-label">${wins.length === 1 ? 'VITÓRIA HOJE' : 'VITÓRIAS HOJE'}</span>
+            </div>
+        `;
+    }
+
+    if (wins.length === 0) {
+        container.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--text-secondary); font-style: italic;">Nenhuma vitória encontrada hoje.</div>';
+        return;
+    }
+
+    // ── CALCULAR PÓDIO (Rank por performance nas wins) ──
+    const playerStats = {};
+    wins.forEach(win => {
+        win.players.forEach(p => {
+            if (!playerStats[p.name]) {
+                playerStats[p.name] = { name: p.name, wins: 0, kills: 0 };
+            }
+            playerStats[p.name].wins++;
+            playerStats[p.name].kills += p.kills;
+        });
+    });
+
+    const ranked = Object.values(playerStats).sort((a, b) => 
+        (b.wins - a.wins) || (b.kills - a.kills)
+    );
+
+    // Render Podium
+    const podiumHtml = [3, 1, 0, 2].map(rankIndex => {
+        const p = ranked[rankIndex];
+        if (!p) return ''; // Don't show empty boxes for 4th place if not needed
+
+        const rankMapping = [1, 2, 3, 4];
+        const rank = rankIndex + 1;
+        const avg = (p.kills / p.wins).toFixed(1);
+
+        const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '🎖️';
+
+        return `
+            <div class="podium-box">
+                <div class="podium-avatar avatar-${rank}">
+                    ${medal}
+                </div>
+                <div class="podium-step step-${rank}">
+                    <div class="podium-rank">#${rank}</div>
+                    <div class="podium-player-name">${p.name}</div>
+                    <div class="podium-metrics">
+                        <div class="metric-row"><span>VITÓRIAS</span> <span>${p.wins}</span></div>
+                        <div class="metric-row"><span>TOTAL KILLS</span> <span>${p.kills}</span></div>
+                        <div class="metric-row" style="border:none; color: gold;"><span>MÉDIA KILLS</span> <span>${avg}</span></div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    container.innerHTML = podiumHtml;
+}
+
+// Add scroll-to-top on tab change
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+});
 
 
 
