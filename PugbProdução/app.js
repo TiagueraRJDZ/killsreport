@@ -267,9 +267,17 @@ async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
         const createdAt = matchData.attributes.createdAt.split("T")[0];
 
         const matchType = matchData.attributes.matchType;
+        const gameMode = matchData.attributes.gameMode;
+        const mapName = matchData.attributes.mapName;
 
-        // Ignore TDM, Events, and Training modes
-        if (matchType === "event" || matchType === "arcade" || matchType === "training") {
+        // Ignore TDM, Events, and Training modes (including Range_Main/Camp Jackal training ground)
+        if (
+            matchType === "event" ||
+            matchType === "arcade" ||
+            matchType === "training" ||
+            mapName === "Range_Main" ||
+            (gameMode && (gameMode.includes("training") || gameMode.includes("warmup")))
+        ) {
             continue;
         }
 
