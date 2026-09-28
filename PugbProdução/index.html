@@ -3,13 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PUBG Tracker PRO | Estatísticas em Tempo Real</title>
-    <meta name="description" content="Acompanhe suas estatísticas do PUBG com precisão profissional. KD, vitórias, armas favoritas e análise de mapas.">
-    <link rel="icon" type="image/x-icon" href="https://pubg.com/favicon.ico?v=1">
-    
+    <title>Ego Team Tracker | Estatísticas PUBG</title>
+    <meta name="description" content="Acompanhe suas estatísticas do PUBG: kills, K/D, vitórias, armas favoritas e o ranking da Ego Team.">
+    <link rel="icon" type="image/png" href="logo.png">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap">
+
     <!-- External Dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
+
     <!-- Firebase SDK (Modular) -->
     <script type="importmap">
     {
@@ -20,152 +25,201 @@
       }
     }
     </script>
-    
+
     <link rel="stylesheet" href="index.css">
 </head>
+<body>
+
 <!-- Loading Overlay -->
 <div id="pageLoader" class="loading-overlay">
     <div class="loader-content">
-        <div class="premium-spinner"></div>
+        <img class="loader-logo" src="logo.png" alt="" width="72" height="72">
         <div id="loaderText" class="loading-text">Carregando relatórios dos Nubs</div>
     </div>
 </div>
 
-<div class="container">
-    <!-- Header with Search -->
-    <header class="header">
-        <div class="logo">Ego Team <span style="font-size: 18px; font-weight: 400; opacity: 0.7; margin-left: 5px;">Tracker</span></div>
-        
-        <div class="search-box">
-            <div class="search-field player-field">
-                <input type="text" id="playerInput" placeholder="Pesquise seu ID">
-            </div>
-            <button id="searchBtn">Buscar</button>
+<header class="topbar">
+    <div class="topbar-inner">
+        <div class="logo">
+            <img class="logo-mark" src="logo.png" alt="" width="38" height="38">
+            <span class="logo-name">Ego Team</span>
+            <span class="logo-sub">Tracker</span>
         </div>
-    </header>
 
-    <!-- Tab Navigation -->
-    <nav class="tab-navigation">
-        <button class="tab-btn active" data-tab="overview">
-            <span class="tab-icon">📊</span> Visão Geral
-        </button>
-        <button class="tab-btn" data-tab="wins-day">
-            <span class="tab-icon">🏆</span> Wins do Dia
-        </button>
-    </nav>
+        <nav class="tab-navigation" aria-label="Seções">
+            <button class="tab-btn active" data-tab="overview">Visão geral</button>
+            <button class="tab-btn" data-tab="wins-day">Wins do dia</button>
+            <button class="tab-btn" data-tab="season">Temporada</button>
+        </nav>
+
+        <div class="search-box">
+            <label class="search-field">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+                <input type="text" id="playerInput" placeholder="Buscar jogador pelo ID" aria-label="ID do jogador" autocomplete="off" spellcheck="false">
+            </label>
+            <button id="searchBtn" class="btn-primary">Buscar</button>
+        </div>
+    </div>
+</header>
+
+<main class="container">
 
     <div id="overview" class="tab-content active">
 
-    <!-- Global Stats Overview -->
-    <section class="card stats-overview">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-            <h2 style="margin: 0;">📊 Estatísticas <span id="statsTypeLabel">(Últimos 20 Jogos)</span></h2>
-        </div>
-        <div class="stats-grid" id="globalStats">
-            <div class="stat-item">
-                <div class="stat-label">Kills</div>
-                <div class="stat-value" id="killsVal">-</div>
+        <!-- Player Summary -->
+        <section class="card summary-card">
+            <div class="summary-head">
+                <div>
+                    <span class="caption">Estatísticas · últimos 20 jogos</span>
+                    <h1 id="statsTypeLabel" class="player-title">Busque um jogador</h1>
+                </div>
+                <span class="caption summary-hint">Clique num jogador do ranking para ver os números dele aqui</span>
             </div>
-            <div class="stat-item">
-                <div class="stat-label">K/D Ratio</div>
-                <div class="stat-value" id="kdVal">-</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-label">Vitórias</div>
-                <div class="stat-value" id="winsVal">-</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-label">Partidas</div>
-                <div class="stat-value" id="matchesVal">-</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-label">Média de Dano</div>
-                <div class="stat-value" id="damageVal">-</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-label">Headshot %</div>
-                <div class="stat-value" id="hsVal">-</div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Hall of Fame - Sou o mior Siuuuu!!! -->
-    <section class="card hall-fame-card" id="hallOfFameSection" style="display: none;">
-        <h2>🏆 Sou o mior Siuuuu!!! <span style="font-size: 12px; opacity: 0.6; margin-left: auto;">TOP PERFORMANCE (Últimos 20 Jogos)</span></h2>
-        <div id="hallOfFameContainer">
-            <!-- Global ranking will be injected here -->
-        </div>
-    </section>
-
-
-
-    <!-- Analysis Grid -->
-    <div class="visual-grid">
-        <!-- KD Progression Chart -->
-        <section class="card">
-            <h2>📈 Trend de Performance (Últimas Partidas)</h2>
-            <div style="height: 300px; position: relative;">
-                <canvas id="kdTrendChart"></canvas>
-            </div>
-        </section>
-
-        <!-- Top Weapons -->
-        <section class="card">
-            <h2>🔫 Arsenal de Elite</h2>
-            <div id="weaponsGrid" class="grid-small">
-                <!-- Weapons will be injected here -->
-                <p style="color: grey; font-size: 14px;">Aguardando dados...</p>
-            </div>
-        </section>
-    </div>
-    </div> <!-- End of Overview Tab -->
-
-    <!-- Wins of the Day Tab -->
-    <div id="wins-day" class="tab-content">
-        <!-- Win Counter Highlight -->
-        <div id="winCountHighlight" class="win-count-highlight">
-            <!-- Will be injected by JS -->
-        </div>
-
-        <section class="card podium-section">
-            <h2>🏆 Pódio das Vitórias <span style="font-size: 12px; opacity: 0.6; margin-left: auto;">TOP PERFORMANCE HOJE</span></h2>
-            <div id="podiumContainer" class="podium-container">
-                <div style="text-align: center; padding: 40px; color: var(--text-secondary);">
-                    Aguardando busca de dados...
+            <div class="stats-grid" id="globalStats">
+                <div class="stat-item">
+                    <span class="stat-label">Kills</span>
+                    <span class="stat-value" id="killsVal">-</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">K/D</span>
+                    <span class="stat-value" id="kdVal">-</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Vitórias</span>
+                    <span class="stat-value" id="winsVal">-</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Partidas</span>
+                    <span class="stat-value" id="matchesVal">-</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Dano médio</span>
+                    <span class="stat-value" id="damageVal">-</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Headshot</span>
+                    <span class="stat-value" id="hsVal">-</span>
                 </div>
             </div>
         </section>
+
+        <!-- Ranking (Hall of Fame) -->
+        <section class="card flush" id="hallOfFameSection" hidden>
+            <div class="card-head">
+                <div class="card-title">
+                    <h2>Ranking da Ego Team</h2>
+                    <span class="caption">por kills em jogadores reais · últimos 20 jogos de cada</span>
+                </div>
+                <span class="caption hide-sm">Clique para ver as partidas</span>
+            </div>
+            <div id="hallOfFameContainer"></div>
+        </section>
+
+        <!-- Chart + Weapons -->
+        <div class="visual-grid">
+            <section class="card chart-card">
+                <div class="card-title spread">
+                    <h2>Kills por partida</h2>
+                    <span class="caption">média <span id="kdTrendAvg" class="mono strong">-</span></span>
+                </div>
+                <div class="chart-wrap">
+                    <canvas id="kdTrendChart"></canvas>
+                </div>
+                <div class="chart-legend"><span>Mais antiga</span><span>Mais recente</span></div>
+            </section>
+
+            <section class="card">
+                <div class="card-title spread">
+                    <h2>Armas mais letais</h2>
+                    <span class="caption">kills em jogadores</span>
+                </div>
+                <div id="weaponsGrid" class="weapons-list">
+                    <p class="empty">Aguardando busca.</p>
+                </div>
+            </section>
+        </div>
     </div>
 
-    <!-- Footer Meta -->
+    <!-- Wins of the Day Tab -->
+    <div id="wins-day" class="tab-content">
+        <section id="winCountHighlight" class="card win-hero">
+            <span class="win-hero-number">0</span>
+            <div>
+                <h1 class="win-hero-title">vitórias hoje</h1>
+                <span class="caption">Busque um jogador para ver as vitórias de hoje</span>
+            </div>
+        </section>
 
-    <!-- Footer Meta -->
-    <footer style="text-align: center; color: var(--text-secondary); font-size: 12px; margin-top: 40px; border-top: 1px solid var(--glass-border); padding-top: 20px;">
-        Ego Team Tracker PRO v2.1 - Desenvolvido por TIAGUERArjdz
-    </footer>
-</div>
+        <section class="podium-section">
+            <div class="card-title">
+                <h2>Pódio do dia</h2>
+                <span class="caption">por vitórias, depois por kills</span>
+            </div>
+            <div id="podiumContainer" class="podium-grid">
+                <p class="empty">Aguardando busca.</p>
+            </div>
+        </section>
 
-<!-- Kills Detail Modal (hover popover) -->
+        <section class="card flush" id="winsListSection" hidden>
+            <div class="card-head">
+                <h2>Partidas vencidas hoje</h2>
+            </div>
+            <div id="winsList"></div>
+        </section>
+    </div>
+
+    <!-- Season Wins Tab -->
+    <div id="season" class="tab-content">
+        <section class="card win-hero">
+            <span id="seasonHeroNumber" class="win-hero-number">-</span>
+            <div>
+                <h1 id="seasonHeroTitle" class="win-hero-title">vitórias na temporada</h1>
+                <span id="seasonHeroCaption" class="caption">Busque um jogador para ver as vitórias da temporada</span>
+            </div>
+        </section>
+
+        <section class="card flush">
+            <div class="card-head">
+                <div class="card-title">
+                    <h2>Vitórias da temporada por jogador</h2>
+                    <span id="seasonLabel" class="caption">partidas normais, todos os modos</span>
+                </div>
+            </div>
+            <div id="seasonContainer">
+                <p class="empty pad">Busque um jogador para ver as vitórias da temporada.</p>
+            </div>
+        </section>
+    </div>
+
+    <footer class="footer">Desenvolvido por TIAGUERArjdz</footer>
+</main>
+
+<!-- Kills Detail Popover -->
 <div id="killsModal" class="kills-modal-overlay" onmouseenter="keepKillsModalOpen()" onmouseleave="closeKillsModal()">
     <div class="kills-modal">
         <div class="kills-modal-header">
             <span id="killsModalTitle"></span>
-            <button class="kills-modal-close" onclick="closeKillsModal(0)">✕</button>
+            <button class="icon-btn small" onclick="closeKillsModal(0)" aria-label="Fechar">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+            </button>
         </div>
         <div id="killsModalBody" class="kills-modal-body"></div>
     </div>
 </div>
 
 <!-- Match Timeline Modal -->
-<div id="timelineModal" class="timeline-modal-overlay">
-    <div class="timeline-modal">
+<div id="timelineModal" class="timeline-modal-overlay" onclick="if (event.target === this) closeTimelineModal()">
+    <div class="timeline-modal" role="dialog" aria-modal="true" aria-labelledby="timelineTitle">
         <div class="timeline-modal-header">
-            <div class="timeline-modal-title">🎥 Match Time Line</div>
-            <button class="timeline-modal-close" onclick="closeTimelineModal()">✕</button>
+            <div>
+                <h2 id="timelineTitle">Timeline da partida</h2>
+                <p id="timelineMeta" class="caption"></p>
+            </div>
+            <button class="icon-btn" onclick="closeTimelineModal()" aria-label="Fechar">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+            </button>
         </div>
-        <div id="timelineModalBody" class="timeline-scroll-area">
-            <!-- Timeline items injected here -->
-        </div>
+        <div id="timelineModalBody" class="timeline-scroll-area"></div>
     </div>
 </div>
 

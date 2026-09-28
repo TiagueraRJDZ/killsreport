@@ -120,6 +120,13 @@ const FRIENDS = ["TIAGUERArjdz", "Alis00n", "M4LW4RE-", "LillWhind", "DeLLano_",
 
 let chartInstance = null;
 let currentAggregatedData = {}; // Global store for click-to-update dashboard
+let currentSearchedName = '';
+let currentTeamPlayers = []; // [{ id, name }] da última busca, usado na aba Temporada
+
+// "AAAA-MM-DD" no fuso local (a API manda UTC; depois das 21h em Brasília o dia UTC já virou)
+function localDateKey(date) {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
 
 // Initialization
 document.addEventListener('DOMContentLoaded', () => {
@@ -146,6 +153,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             btn.classList.add('active');
             document.getElementById(target).classList.add('active');
+
+            // Season stats are rate-limited: only fetched when the tab is opened
+            if (target === 'season') loadSeasonWins();
         });
     });
 });
@@ -174,6 +184,7 @@ async function loadPlayerData(nickname) {
 
         const playerId = mainPlayer.id;
         const officialName = mainPlayer.attributes.name;
+        currentTeamPlayers = allPlayers.map(p => ({ id: p.id, name: p.attributes.name }));
 
         // --- AGGREGATE UNIQUE MATCHES FOR HALL OF FAME ---
         const allMatchIds = new Set();
@@ -189,6 +200,12 @@ async function loadPlayerData(nickname) {
         // Process everything (showing last 20 games of each player)
         await loadMatchHistoryWithFilter(uniqueMatchIds, playerId, officialName);
 
+        if (document.getElementById('season')?.classList.contains('active')) {
+            loadSeasonWins();
+        } else {
+            renderSeasonPlaceholder();
+        }
+
     } catch (err) {
         console.error(err);
         alert("Erro ao buscar dados: " + err.message);
@@ -201,7 +218,8 @@ async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
     const statsLabel = document.getElementById("statsTypeLabel");
     const loaderText = document.getElementById("loaderText");
     // Update labels immediately
-    statsLabel.innerText = `(${officialName})`;
+    statsLabel.innerText = officialName;
+    currentSearchedName = officialName;
     if (loaderText) loaderText.innerText = `Carregando Relatório do Nub ${officialName}`;
     document.getElementById("pageLoader").classList.add("active");
 
@@ -258,7 +276,7 @@ async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
     
     // Daily Analysis Accumulators
     const allWins = [];
-    const today = new Date().toISOString().split('T')[0];
+    const today = localDateKey(new Date());
 
     // 2. Process each match
     for (const m of matchDetails) {
@@ -365,6 +383,9 @@ async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
                         neymar: p.attributes.stats.DBNOs,
                         headshots: p.attributes.stats.headshotKills || 0,
                         died: died,
+                        winPlace: Number(p.attributes.stats.winPlace) || null,
+                        timeSurvived: Math.floor(p.attributes.stats.timeSurvived || 0),
+                        matchDuration: matchData.attributes.duration || 0,
                         botKills: null,
                         playerKills: null,
                         botVictims: [],
@@ -511,14 +532,14 @@ async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
                             const entry = (hallOfFameAggr[hfMapK].history || []).find(h => h.matchId === task.matchId);
                             if (entry) {
                                 if (!entry.timeline) entry.timeline = [];
-                                entry.timeline.push({ type: 'knock', time: timeStamp, killer: killerName, victim: victimName });
+                                entry.timeline.push({ type: 'knock', time: timeStamp, killer: killerName, victim: victimName, weapon: ID_NAMES[weapon] || weapon });
                             }
                         }
                         if (hfMapV) {
                             const entry = (hallOfFameAggr[hfMapV].history || []).find(h => h.matchId === task.matchId);
                             if (entry) {
                                 if (!entry.timeline) entry.timeline = [];
-                                entry.timeline.push({ type: 'get_knocked', time: timeStamp, killer: killerName, victim: victimName });
+                                entry.timeline.push({ type: 'get_knocked', time: timeStamp, killer: killerName, victim: victimName, weapon: ID_NAMES[weapon] || weapon });
                             }
                         }
                     }
@@ -615,29 +636,67 @@ async function loadMatchHistoryWithFilter(matchIds, playerId, officialName) {
 
     // Filter Wins of the Day for the Searched Player
     const winsToday = allWins.filter(w => 
-        w.time.split('T')[0] === today && 
+        localDateKey(new Date(w.time)) === today &&
         w.players.some(p => p.name === officialName)
     );
     renderWinRegistry(winsToday);
 
-    // Default dashboard to searched player
+    // Default dashboard (stats, weapons, chart) to searched player
     if (hallOfFameAggr[officialName]) {
         updateDashboard(officialName);
+    } else {
+        renderWeapons({});
+        renderProgressionChart([]);
     }
-
-    // Removed redundant direct updates, now using updateDashboard
-    renderWeapons(weapons);
-
-    // Sort and finalize KD history using real player kills for the chart
-    const officialHistory = (hallOfFameAggr[officialName]?.history || []);
-    const chartData = officialHistory
-        .map(h => ({ fullDate: h.fullDate, kills: h.playerKills || 0 }))
-        .sort((a, b) => new Date(a.fullDate) - new Date(b.fullDate))
-        .slice(-20)
-        .map(k => k.kills);
-
-    renderProgressionChart(chartData);
 }
+
+// ── Helpers ──
+
+const RANK_TITLES = ['Mior Siuuuu!!!', 'Lixinho', 'Verme', 'Inseto'];
+const LAST_RANK_TITLE = 'Xupingole o lixo supremo';
+
+const CHEVRON_SVG = `<svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>`;
+const TROPHY_SVG = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg>`;
+
+function esc(value) {
+    return String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// String safe to embed as a single-quoted JS argument inside an HTML attribute
+function arg(value) {
+    return esc(String(value ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'"));
+}
+
+function getMatch(playerName, matchId) {
+    return currentAggregatedData[playerName]?.history?.find(h => h.matchId === matchId);
+}
+
+function modeLabel(mode) {
+    if (!mode) return '-';
+    const base = mode.includes('squad') ? 'Squad' : mode.includes('duo') ? 'Duo' : mode.includes('solo') ? 'Solo' : mode;
+    return mode.includes('fpp') ? `${base} FPP` : base;
+}
+
+function formatMatchDate(fullDate) {
+    if (!fullDate) return { date: '-', ago: '' };
+    const d = new Date(fullDate);
+    const diffMins = Math.floor((new Date() - d) / 60000);
+    const diffHrs = Math.floor(diffMins / 60);
+    const ago = diffHrs < 1 ? `${diffMins}m atrás` : diffHrs < 24 ? `${diffHrs}h atrás` : `${Math.floor(diffHrs / 24)}d atrás`;
+    const pad = n => String(n).padStart(2, '0');
+    return { date: `${pad(d.getDate())}/${pad(d.getMonth() + 1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`, ago };
+}
+
+function formatNumber(n) {
+    return Number(n || 0).toLocaleString('pt-BR');
+}
+
+function updateText(id, val) {
+    const el = document.getElementById(id);
+    if (el) el.innerText = val;
+}
+
+// ── Dashboard ──
 
 function updateDashboard(playerName) {
     const stats = currentAggregatedData[playerName];
@@ -653,139 +712,136 @@ function updateDashboard(playerName) {
     updateText('winsVal', stats.wins);
     updateText('matchesVal', stats.matches);
     updateText('damageVal', avgDmg);
-    updateText('hsVal', hs + "%");
+    updateText('hsVal', hs.replace('.', ',') + "%");
+    updateText('statsTypeLabel', playerName);
 
-    // Update Elite Arsenal for this specific player (non-bot kills)
+    // Elite Arsenal (non-bot kills) and kills trend for this specific player
     renderWeapons(stats.weapons || {});
 
-    document.getElementById("statsTypeLabel").innerText = `(${playerName})`;
+    const chartData = (stats.history || [])
+        .map(h => ({ fullDate: h.fullDate, kills: h.playerKills || 0 }))
+        .sort((a, b) => new Date(a.fullDate) - new Date(b.fullDate))
+        .slice(-20)
+        .map(k => k.kills);
+    renderProgressionChart(chartData);
+}
+
+function weaponDisplayName(id) {
+    return ID_NAMES[id] || id.replace('Item_Weapon_', '').replace('Weap', '').replace('_C', '').replace('BP_', '');
+}
+
+function weaponImageUrl(id) {
+    if (id.startsWith('Proj')) {
+        const imgId = id.replace('Proj', 'Item_Weapon_').split('_C')[0] + '_C';
+        return `https://raw.githubusercontent.com/pubg/api-assets/master/Assets/Item/Equipment/Throwable/${imgId}.png`;
+    }
+    const imgId = id.replace('Weap', 'Item_Weapon_').split('_C')[0] + '_C';
+    const finalImgId = imgId.startsWith('Item_Weapon_') ? imgId : 'Item_Weapon_' + imgId;
+    return `https://raw.githubusercontent.com/pubg/api-assets/master/Assets/Item/Weapon/Main/${finalImgId}.png`;
 }
 
 function renderWeapons(data) {
-    // 1. Group by count to handle ties
-    const groups = {};
-    Object.entries(data).forEach(([id, count]) => {
-        if (!groups[count]) groups[count] = [];
-        groups[count].push(id);
-    });
-
-    // 2. Select top 10 unique counts (Tiers)
-    const sortedCounts = Object.keys(groups)
-        .map(Number)
-        .sort((a, b) => b - a)
-        .slice(0, 10);
-
     const container = document.getElementById("weaponsGrid");
     if (!container) return;
 
-    // Use flex container instead of grid-small for grouping
-    container.className = "weapons-container";
+    const top = Object.entries(data).sort((a, b) => b[1] - a[1]).slice(0, 8);
 
-    if (sortedCounts.length === 0) {
-        container.innerHTML = '<p style="color: grey; font-size: 14px; text-align: center; padding: 20px;">Nenhum abate registrado.</p>';
+    if (top.length === 0) {
+        container.innerHTML = '<p class="empty">Nenhum abate registrado.</p>';
         return;
     }
 
-    container.innerHTML = sortedCounts.map(countValue => {
-        const weaponIds = groups[countValue];
-        const label = countValue === 1 ? "1 Abate" : `${countValue} Abates`;
-
-        const weaponsHtml = weaponIds.map(id => {
-            const displayName = ID_NAMES[id] || id.replace('Item_Weapon_', '').replace('Weap', '').replace('_C', '').replace('BP_', '');
-
-            // Generate icon URL logic
-            let imgUrl = "";
-            if (id.startsWith('Proj')) {
-                const imgId = id.replace('Proj', 'Item_Weapon_').split('_C')[0] + '_C';
-                imgUrl = `https://raw.githubusercontent.com/pubg/api-assets/master/Assets/Item/Equipment/Throwable/${imgId}.png`;
-            } else {
-                const imgId = id.replace('Weap', 'Item_Weapon_').split('_C')[0] + '_C';
-                const finalImgId = imgId.startsWith('Item_Weapon_') ? imgId : 'Item_Weapon_' + imgId;
-                imgUrl = `https://raw.githubusercontent.com/pubg/api-assets/master/Assets/Item/Weapon/Main/${finalImgId}.png`;
-            }
-
-            return `
-                <div class="weapon-card">
-                    <div class="weapon-icon-wrapper">
-                        <img src="${imgUrl}" alt="${displayName}" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3222/3222718.png';">
-                    </div>
-                    <div class="weapon-info">
-                        <span class="name">${displayName}</span>
-                    </div>
-                </div>
-            `;
-        }).join('');
-
+    const max = top[0][1];
+    container.innerHTML = top.map(([id, count]) => {
+        const name = weaponDisplayName(id);
         return `
-            <div class="weapon-tier-row">
-                <div class="tier-header">${label}</div>
-                <div class="tier-weapons">
-                    ${weaponsHtml}
-                </div>
-            </div>
-        `;
+            <div class="weapon-row">
+                <span class="weapon-thumb"><img src="${weaponImageUrl(id)}" alt="" loading="lazy" onerror="this.remove()"></span>
+                <span class="weapon-name" title="${esc(name)}">${esc(name)}</span>
+                <span class="bar"><span style="width: ${Math.round(count / max * 100)}%"></span></span>
+                <span class="weapon-count">${count}</span>
+            </div>`;
     }).join('');
 }
 
 function renderProgressionChart(data) {
-    const ctx = document.getElementById("kdTrendChart").getContext("2d");
-    if (chartInstance) chartInstance.destroy();
+    const canvas = document.getElementById("kdTrendChart");
+    if (chartInstance) {
+        chartInstance.destroy();
+        chartInstance = null;
+    }
 
-    if (data.length === 0) return;
+    if (data.length === 0) {
+        updateText('kdTrendAvg', '-');
+        return;
+    }
 
-    const gradient = ctx.createLinearGradient(0, 0, 0, 400);
-    gradient.addColorStop(0, 'rgba(247, 181, 0, 0.5)');
-    gradient.addColorStop(1, 'rgba(247, 181, 0, 0)');
+    const avg = data.reduce((a, b) => a + b, 0) / data.length;
+    updateText('kdTrendAvg', avg.toFixed(1).replace('.', ','));
 
-    chartInstance = new Chart(ctx, {
+    const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent-strong').trim() || '#D99A12';
+
+    chartInstance = new Chart(canvas.getContext("2d"), {
         type: 'line',
         data: {
-            labels: data.map((_, i) => "M" + (i + 1)),
+            labels: data.map((_, i) => `Partida ${i + 1}`),
             datasets: [{
-                label: 'Kills p/ Partida',
+                label: 'Kills',
                 data: data,
-                borderColor: '#f7b500',
-                backgroundColor: gradient,
+                borderColor: accent,
+                backgroundColor: 'rgba(240, 180, 60, 0.14)',
                 fill: true,
-                tension: 0.4,
-                pointBackgroundColor: '#f7b500',
-                pointBorderWidth: 2,
-                pointRadius: 4
+                tension: 0.3,
+                borderWidth: 2,
+                pointRadius: 0,
+                pointHoverRadius: 4,
+                pointBackgroundColor: accent
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
             scales: {
-                y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#999' } },
-                x: { grid: { display: false }, ticks: { color: '#999' } }
+                y: {
+                    beginAtZero: true,
+                    border: { display: false },
+                    grid: { color: '#EEF0F2' },
+                    ticks: { color: '#6B727C', precision: 0, font: { family: 'Outfit', size: 13 } }
+                },
+                x: { display: false }
             },
-            plugins: { legend: { display: false } }
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#FFFFFF',
+                    borderColor: '#D5D9DE',
+                    borderWidth: 1,
+                    titleColor: '#4B525B',
+                    bodyColor: '#16181C',
+                    displayColors: false,
+                    titleFont: { family: 'Outfit' },
+                    bodyFont: { family: 'Outfit' },
+                    callbacks: { label: c => `${c.parsed.y} kills` }
+                }
+            }
         }
     });
 }
 
-function updateText(id, val) {
-    const el = document.getElementById(id);
-    if (el) el.innerText = val;
-}
-
 function setLoading(isLoading) {
     const btn = document.getElementById('searchBtn');
-    if (isLoading) {
-        btn.innerText = "Buscando...";
-        btn.disabled = true;
-    } else {
-        btn.innerText = "Buscar";
-        btn.disabled = false;
-    }
+    btn.innerText = isLoading ? "Buscando..." : "Buscar";
+    btn.disabled = isLoading;
 }
 
 function resetStats() {
     ['killsVal', 'kdVal', 'winsVal', 'matchesVal', 'damageVal', 'hsVal'].forEach(id => updateText(id, "-"));
-    document.getElementById("weaponsGrid").innerHTML = "";
-    document.getElementById("hallOfFameSection").style.display = "none";
+    document.getElementById("weaponsGrid").innerHTML = '<p class="empty">Carregando...</p>';
+    document.getElementById("hallOfFameSection").hidden = true;
 }
+
+// ── Ranking (Hall of Fame) ──
 
 function renderHallOfFame(data) {
     const section = document.getElementById("hallOfFameSection");
@@ -793,11 +849,11 @@ function renderHallOfFame(data) {
 
     const players = Object.entries(data);
     if (players.length === 0) {
-        section.style.display = "none";
+        section.hidden = true;
         return;
     }
 
-    section.style.display = "block";
+    section.hidden = false;
 
     // Sort historical matches by date (Newest first)
     players.forEach(([_, stats]) => {
@@ -808,462 +864,330 @@ function renderHallOfFame(data) {
 
     // Sort by Real Kills (primary) and Damage (secondary)
     const sorted = players.sort((a, b) => (b[1].realKillsTotal || 0) - (a[1].realKillsTotal || 0) || b[1].damage - a[1].damage);
+    const maxKills = Math.max(1, sorted[0][1].realKillsTotal || 0);
 
     const rows = sorted.map(([name, stats], index) => {
-        const timeH = Math.floor(stats.time / 3600);
-        const timeM = Math.floor((stats.time % 3600) / 60);
-        const isMior = index === 0;
         const isLast = index === sorted.length - 1 && sorted.length > 1;
-
-        let badgeText = '';
-        let badgeStyle = '';
-
-        if (isMior) {
-            badgeText = 'Mior Siuuuu!!!';
-            badgeStyle = 'background: #ffd700; color: #000;';
-        } else if (isLast) {
-            badgeText = 'Xupingole o lixo supremo';
-            badgeStyle = 'background: #4a3728; color: #fff;';
-        } else if (index === 1) {
-            badgeText = 'Lixinho';
-            badgeStyle = 'background: #8e8e8e; color: #fff;';
-        } else if (index === 2) {
-            badgeText = 'Verme';
-            badgeStyle = 'background: #6d6d6d; color: #fff;';
-        } else if (index === 3) {
-            badgeText = 'Inseto';
-            badgeStyle = 'background: #555; color: #fff;';
-        }
+        const title = index === 0 ? RANK_TITLES[0] : isLast ? LAST_RANK_TITLE : (RANK_TITLES[index] || '');
 
         const realKills = stats.realKillsTotal || 0;
         const kd = (realKills / Math.max(1, stats.deaths)).toFixed(2);
         const hsRate = realKills > 0 ? Math.round((stats.headshots / realKills) * 100) : 0;
+        const timeH = Math.floor(stats.time / 3600);
+        const timeM = String(Math.floor((stats.time % 3600) / 60)).padStart(2, '0');
         const safeId = name.replace(/[^a-zA-Z0-9]/g, '');
+        const isSearched = name.toLowerCase() === currentSearchedName.toLowerCase();
 
-        const historyRows = (stats.history || []).map(h => {
-            let timeStr = "";
-            if (h.fullDate) {
-                const d = new Date(h.fullDate);
-                const diffMs = new Date() - d;
-                const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
-                const diffMins = Math.floor(diffMs / (1000 * 60));
-
-                let agoStr = "";
-                if (diffHrs < 1) agoStr = `${diffMins}m atrás`;
-                else if (diffHrs < 24) agoStr = `${diffHrs}h atrás`;
-                else agoStr = `${Math.floor(diffHrs / 24)}d atrás`;
-
-                const day = String(d.getDate()).padStart(2, '0');
-                const month = String(d.getMonth() + 1).padStart(2, '0');
-                const hrs = String(d.getHours()).padStart(2, '0');
-                const mins = String(d.getMinutes()).padStart(2, '0');
-
-                timeStr = `<div style="line-height: 1.2;">${day}/${month} ${hrs}:${mins} <span style="color:#555; display:block; font-size:10px;">${agoStr}</span></div>`;
-            }
-
-            const userSvg = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" style="margin: 0 -3px; flex-shrink: 0;"><path d="M20 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>`;
-            let modeIcon = '';
-            if (h.mode && h.mode.includes('squad')) {
-                modeIcon = `<div style="display: flex; justify-content: center; align-items: center; min-width: 45px;">${userSvg}${userSvg}${userSvg}${userSvg}</div>`;
-            } else if (h.mode && h.mode.includes('duo')) {
-                modeIcon = `<div style="display: flex; justify-content: center; align-items: center; min-width: 45px;">${userSvg}${userSvg}</div>`;
-            } else {
-                modeIcon = `<div style="display: flex; justify-content: center; align-items: center; min-width: 45px;">${userSvg}</div>`;
-            }
-
-            let teammatesHtml = '';
-            const matchRowId = `match-${safeId}-${(Math.random() * 10000).toFixed(0)}`;
-
-            // Ego Team Section
-            let egoHtml = '';
-            if (h.friendsTeammates && h.friendsTeammates.length > 0) {
-                egoHtml = `<div style="display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-bottom: ${h.randomTeammates && h.randomTeammates.length > 0 ? '8px' : '0'};">
-                    <span style="color: #ffd700; font-weight: 800; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; min-width: 65px;">Ego Team:</span>` +
-                    h.friendsTeammates.map(t => {
-                        const myStats = JSON.stringify({ name: name, kills: h.kills, damage: h.damage, assists: h.assists, headshots: h.headshots, neymar: h.neymar }).replace(/"/g, '&quot;');
-                        const friendStats = JSON.stringify(t).replace(/"/g, '&quot;');
-                        return `<span onclick="toggleVersus('${matchRowId}', ${myStats}, ${friendStats}); event.stopPropagation();" 
-                             style="background: rgba(255,215,0,0.1); border: 1px solid rgba(255,215,0,0.4); padding: 3px 8px; border-radius: 4px; font-size: 10px; color: #ffd700; font-weight: 700; cursor: pointer; transition: all 0.2s;"
-                             class="teammate-badge" title="Clique para Versus">
-                            ${t.name || 'Desconhecido'}
-                        </span>`;
-                    }).join('') + `</div>`;
-            }
-
-            // Aleatórios Section
-            let randomHtml = '';
-            if (h.randomTeammates && h.randomTeammates.length > 0) {
-                randomHtml = `<div style="display: flex; align-items: center; flex-wrap: wrap; gap: 6px;">
-                    <span style="color: #64748b; font-weight: 800; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; min-width: 65px;">Aleatórios:</span>` +
-                    h.randomTeammates.map(t => {
-                        const myStats = JSON.stringify({ name: name, kills: h.kills, damage: h.damage, assists: h.assists, headshots: h.headshots, neymar: h.neymar }).replace(/"/g, '&quot;');
-                        const friendStats = JSON.stringify(t).replace(/"/g, '&quot;');
-                        return `<span onclick="toggleVersus('${matchRowId}', ${myStats}, ${friendStats}); event.stopPropagation();" 
-                             style="background: rgba(100,116,139,0.1); border: 1px solid rgba(100,116,139,0.3); padding: 3px 8px; border-radius: 4px; font-size: 10px; color: #94a3b8; cursor: pointer; transition: all 0.2s;"
-                             class="teammate-badge" title="Clique para Versus">
-                            ${t.name || 'Desconhecido'}
-                        </span>`;
-                    }).join('') + `</div>`;
-            }
-
-            const allTeam = [...(h.friendsTeammates || []), ...(h.randomTeammates || [])];
-            const myStatsStr = JSON.stringify({ name: name, kills: h.kills, damage: h.damage, assists: h.assists, headshots: h.headshots, neymar: h.neymar }).replace(/"/g, '&quot;');
-            const allTeamStr = JSON.stringify(allTeam).replace(/"/g, '&quot;');
-
-            const actionButtons = `<div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
-                <span onclick="openMatchTimeline('${name.replace(/'/g, "\\'")}', '${h.matchId}'); event.stopPropagation();" 
-                    style="background: #ffd700; color: #111; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 900; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.3); transition: all 0.2s;"
-                    onmouseover="this.style.background='#ffc933'" onmouseout="this.style.background='#ffd700'"
-                    title="Ver linha do tempo da partida">
-                    TIME LINE
-                </span>
-                ${allTeam.length > 0 ? `
-                    <span onclick="toggleVersusAll('${matchRowId}', ${myStatsStr}, ${allTeamStr}); event.stopPropagation();" 
-                        style="background: #ffd700; color: #111; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 900; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.3);"
-                        title="Ver comparativo de toda a equipe">
-                        TODOS
-                    </span>` : ''}
-            </div>`;
-
-            teammatesHtml = `<div style="padding: 5px 0;">${egoHtml}${randomHtml}</div>`;
-            if (!(h.friendsTeammates && h.friendsTeammates.length > 0) && !(h.randomTeammates && h.randomTeammates.length > 0)) {
-                teammatesHtml = '<span style="color: #666; font-size: 10px;">-</span>';
-            }
-
-            const playerVictimsJson = JSON.stringify(h.playerVictims || []).replace(/"/g, '&quot;');
-            const botVictimsJson = JSON.stringify(h.botVictims || []).replace(/"/g, '&quot;');
-
-            return `
-            <tr style="border-bottom: 1px solid #222;">
-                <td style="color: #888; font-size: 11px; padding: 4px 0;">${timeStr}</td>
-                <td style="text-align: center;">${h.died === 0 ? '<span class="victory-medal" style="font-size: 16px;">🥇</span>' : ''}</td>
-                <td style="color: #fff; text-align: center;">${h.kills}</td>
-                <td onmouseenter="openKillsModal('👤 Players', ${playerVictimsJson}, 'player', this)" onmouseleave="closeKillsModal()" style="color: ${h.playerKills !== null ? '#22c55e' : '#444'}; font-weight: ${h.playerKills !== null ? '700' : '400'}; font-size: 12px; cursor: default; user-select: none; text-align: center;">${h.playerKills !== null ? h.playerKills : '—'}</td>
-                <td onmouseenter="openKillsModal('🤖 Bots', ${botVictimsJson}, 'bot', this)" onmouseleave="closeKillsModal()" style="color: ${h.botKills !== null ? '#ef4444' : '#444'}; font-weight: ${h.botKills !== null ? '700' : '400'}; font-size: 12px; cursor: default; user-select: none; text-align: center;">${h.botKills !== null ? h.botKills : '—'}</td>
-                <td style="color: #ccc; text-align: center;">${h.headshots}</td>
-                <td style="color: #aaa; text-align: center;">${h.damage}</td>
-                <td style="color: #aaa; text-align: center;">${h.assists}</td>
-                <td style="color: #aaa; text-align: center;">${h.neymar}</td>
-                <td style="text-align: center; font-size: 11px;">
-                    ${h.died === 0 ? '<span style="color: #22c55e; font-weight: 800;">WIN</span>' : `<span style="color: #ef4444;">${ID_NAMES[h.killerOfUser] || h.killerOfUser || 'Desconhecido'}</span>`}
-                </td>
-                <td style="text-align: center;" title="${h.mode}">${modeIcon}</td>
-                <td style="vertical-align: middle;">${teammatesHtml}</td>
-                <td style="text-align: center; vertical-align: middle; padding: 0 5px;">${actionButtons}</td>
-            </tr>
-            <tr id="${matchRowId}" class="comparison-row" style="display: none; background: #0c0c0c;">
-                <td colspan="13" style="padding: 10px;">
-                    <!-- Versus injection point -->
-                </td>
-            </tr>
-        `;
-        }).join('');
-
-        const isSearched = (name.toLowerCase() === document.getElementById('playerInput').value.toLowerCase());
+        const classes = ['rank-item', index === 0 && 'is-top', isSearched && 'is-searched'].filter(Boolean).join(' ');
+        const historyRows = (stats.history || []).map((h, i) => renderHistoryRow(name, h, `${safeId}-${i}`)).join('');
 
         return `
-            <tr class="${isMior ? 'rank-top' : ''}" 
-                style="cursor: pointer; ${isSearched ? 'background: rgba(247, 181, 0, 0.1); border-left: 4px solid var(--primary);' : ''}" 
-                onclick="togglePlayerHistory('${safeId}', '${name.replace(/'/g, "\\'")}');">
-                <td class="rank-number">#${index + 1}</td>
-                <td>
-                    <span class="player-name">${name}</span>
-                    ${badgeText ? `<span class="mior-badge" style="${badgeStyle}">${badgeText}</span>` : ''}
-                </td>
-                <td class="highlight-stat" style="text-align: center;">
-                    <span style="font-size: 24px; font-weight: 900; color: #ffd700;">${stats.realKillsTotal || 0}</span>
-                </td>
-                <td><span style="color: #999;">Dano:</span> ${stats.damage.toLocaleString()}</td>
-                <td><span style="color: #999;">Asst:</span> ${stats.assists}</td>
-                <td><span style="color: #999;">Neymar:</span> ${stats.neymar}</td>
-                <td><span style="color: #999;">Partidas:</span> ${stats.matches}</td>
-                <td style="font-size: 11px; text-align: right;">${timeH}h ${timeM}m vivo</td>
-            </tr>
-            <tr id="history-${safeId}" class="player-history-row" style="display: none; background: #1a1a1a;">
-                <td colspan="13" style="padding: 15px; border-radius: 8px;">
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 10px; border-bottom: 1px solid #333; padding-bottom: 5px;">
-                        <span style="color: #ffd700; font-weight: bold; font-size: 13px;">DETALHES DAS ${stats.matches} PARTIDAS:</span>
-                        <div style="font-size: 13px;">
-                            <span style="margin-right: 15px; color: #fff;">K/D Global: <strong style="color: #ffd700;">${kd}</strong></span>
-                            <span style="color: #fff;">Taxa de HS: <strong style="color: #ffd700;">${hsRate}%</strong></span>
+            <div class="${classes}" id="rank-${safeId}">
+                <button class="rank-row rank-grid" onclick="togglePlayerHistory('${safeId}', '${arg(name)}')" aria-expanded="false" aria-controls="history-${safeId}">
+                    <span class="rank-pos">${index + 1}</span>
+                    <span class="rank-player">
+                        <span class="rank-name">${esc(name)}</span>
+                        ${title ? `<span class="title-pill">${title}</span>` : ''}
+                    </span>
+                    <span class="rank-kills">
+                        <span class="mono">${realKills}</span>
+                        <span class="bar"><span style="width: ${Math.round(realKills / maxKills * 100)}%"></span></span>
+                    </span>
+                    <span class="num">${kd}</span>
+                    <span class="num dim col-extra">${formatNumber(stats.damage)}</span>
+                    <span class="num dim col-extra">${stats.assists}</span>
+                    <span class="num dim col-extra">${stats.neymar}</span>
+                    <span class="num dim col-extra col-matches">${stats.matches}</span>
+                    <span class="num dim col-extra col-time">${timeH}h ${timeM}m</span>
+                    ${CHEVRON_SVG}
+                </button>
+                <div class="history-panel" id="history-${safeId}" hidden>
+                    <div class="history-head">
+                        <strong>${stats.matches} partidas de ${esc(name)}</strong>
+                        <span class="caption">K/D <span class="mono strong">${kd}</span> · Headshots <span class="mono strong">${hsRate}%</span></span>
+                    </div>
+                    <div class="history-scroll">
+                        <div class="history-table">
+                            <div class="history-grid history-header">
+                                <span>Data</span><span>Resultado</span><span>Kills</span>
+                                <span class="num">HS</span><span class="num">Dano</span><span class="num">Assist.</span><span class="num">Knocks</span>
+                                <span>Modo</span><span>Companheiros</span><span></span>
+                            </div>
+                            ${historyRows}
                         </div>
                     </div>
-                    <table style="width: 100%; text-align: left; font-size: 12px; border-collapse: collapse;">
-                        <thead>
-                            <tr style="color: #ffd700; border-bottom: 1px solid #333;">
-                                <th style="padding: 5px 0; width: 85px;">Data</th>
-                                <th style="text-align: center; width: 40px;">WIN</th>
-                                <th style="text-align: center; width: 40px;">Kills</th>
-                                <th style="color: #22c55e; text-align: center; width: 60px;">Reais</th>
-                                <th style="color: #ef4444; text-align: center; width: 60px;">Bots</th>
-                                <th style="text-align: center; width: 50px;">HS</th>
-                                <th style="text-align: center; width: 60px;">Dano</th>
-                                <th style="text-align: center; width: 50px;">Asst</th>
-                                <th style="text-align: center; width: 50px;">Ney</th>
-                                <th style="text-align: center; width: 110px;">Assassino</th>
-                                <th style="text-align: center; width: 55px;">Modo</th>
-                                <th style="padding-left: 10px;">Companheiros</th>
-                                <th style="text-align: center; width: 180px;">Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${historyRows}
-                        </tbody>
-                    </table>
-                </td>
-            </tr>
+                </div>
+            </div>
         `;
     }).join('');
 
     container.innerHTML = `
-        <table class="rank-table" style="font-size: 13px;">
-            <thead>
-                <tr style="border-bottom: 1px solid #333; color: #666; font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">
-                    <th style="padding: 10px; width: 40px; text-align: center;">RK</th>
-                    <th style="padding: 10px; text-align: left;">JOGADOR</th>
-                    <th style="padding: 10px; text-align: center; color: #ffd700;">KILLS</th>
-                    <th style="padding: 10px; text-align: left;">DANO</th>
-                    <th style="padding: 10px; text-align: left;">ASST</th>
-                    <th style="padding: 10px; text-align: left;">NEYMAR</th>
-                    <th style="padding: 10px; text-align: left;">PARTIDAS</th>
-                    <th style="padding: 10px; text-align: right;">TEMPO VIVO</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${rows}
-            </tbody>
-        </table>
+        <div class="rank-grid rank-header">
+            <span>#</span><span>Jogador</span><span>Kills</span><span class="num">K/D</span>
+            <span class="num col-extra">Dano</span><span class="num col-extra">Assist.</span><span class="num col-extra">Knocks</span>
+            <span class="num col-extra col-matches">Partidas</span><span class="num col-extra col-time">Tempo vivo</span><span></span>
+        </div>
+        ${rows}
+    `;
+}
+
+function renderHistoryRow(playerName, h, rowId) {
+    const { date, ago } = formatMatchDate(h.fullDate);
+    const n = arg(playerName);
+    const m = arg(h.matchId);
+
+    const result = h.died === 0
+        ? '<span class="pill-win">Vitória</span>'
+        : `<span class="killed-by">Morto por <span>${esc(ID_NAMES[h.killerOfUser] || h.killerOfUser || 'desconhecido')}</span></span>`;
+
+    // Real vs bot kills come from telemetry; hover shows who was killed
+    const killChip = (kind, count, label) => count > 0
+        ? `<span class="kill-chip ${kind}" onmouseenter="openKillsModal('${n}', '${m}', '${kind}', this)" onmouseleave="closeKillsModal()">${count} ${label}</span>`
+        : `<span class="kill-chip ${kind} is-empty">0 ${label}</span>`;
+
+    const split = h.playerKills !== null
+        ? `<span class="kills-split">${killChip('player', h.playerKills, 'jog')}${killChip('bot', h.botKills, 'bot')}</span>`
+        : '<span class="kills-split muted">sem telemetria</span>';
+
+    const mateChip = (t, random) =>
+        `<button class="mate-chip${random ? ' random' : ''}" onclick="toggleVersus('${rowId}', '${n}', '${m}', '${arg(t.name)}')" title="Comparar com ${esc(t.name)}">${esc(t.name || 'Desconhecido')}</button>`;
+
+    const mates = [
+        ...(h.friendsTeammates || []).map(t => mateChip(t, false)),
+        ...(h.randomTeammates || []).map(t => mateChip(t, true))
+    ].join('') || '<span class="caption">-</span>';
+
+    const hasTeam = (h.friendsTeammates || []).length + (h.randomTeammates || []).length > 0;
+
+    return `
+        <div class="history-grid history-row">
+            <span class="match-date"><span class="mono">${date}</span><small>${ago}</small></span>
+            <span>${result}</span>
+            <span class="kills-cell"><span class="mono">${h.kills}</span>${split}</span>
+            <span class="num dim">${h.headshots}</span>
+            <span class="num dim">${h.damage}</span>
+            <span class="num dim">${h.assists}</span>
+            <span class="num dim">${h.neymar}</span>
+            <span class="dim" title="${esc(h.mode)}">${modeLabel(h.mode)}</span>
+            <span class="mates">${mates}</span>
+            <span class="row-actions">
+                <button class="btn-ghost" onclick="openMatchTimeline('${n}', '${m}')">Timeline</button>
+                ${hasTeam ? `<button class="btn-ghost" onclick="toggleVersusAll('${rowId}', '${n}', '${m}')">Comparar time</button>` : ''}
+            </span>
+        </div>
+        <div class="compare-panel" id="cmp-${rowId}" hidden></div>
     `;
 }
 
 function togglePlayerHistory(safeId, playerName) {
-    const historyRow = document.getElementById(`history-${safeId}`);
-    if (!historyRow) return;
+    const item = document.getElementById(`rank-${safeId}`);
+    if (!item) return;
 
-    const isAlreadyOpen = historyRow.style.display === 'table-row';
+    const wasOpen = item.classList.contains('is-open');
 
     // Close all other player histories
-    document.querySelectorAll('.player-history-row').forEach(row => {
-        row.style.display = 'none';
+    document.querySelectorAll('.rank-item.is-open').forEach(el => {
+        el.classList.remove('is-open');
+        el.querySelector('.history-panel').hidden = true;
+        el.querySelector('.rank-row').setAttribute('aria-expanded', 'false');
     });
 
-    if (!isAlreadyOpen) {
-        historyRow.style.display = 'table-row';
+    if (!wasOpen) {
+        item.classList.add('is-open');
+        item.querySelector('.history-panel').hidden = false;
+        item.querySelector('.rank-row').setAttribute('aria-expanded', 'true');
     }
 
     // Always update dashboard stats at the top
     updateDashboard(playerName);
 }
 
-function toggleVersus(containerId, me, friend) {
-    const container = document.getElementById(containerId);
-    if (!container) return;
+// ── Versus ──
 
-    const isAlreadyOpen = container.style.display === 'table-row' && container.dataset.player === friend.name;
-
-    // First, close ALL comparison rows to keep it "unpolluted"
-    document.querySelectorAll('.comparison-row').forEach(row => {
-        row.style.display = 'none';
-        row.dataset.player = '';
-    });
-
-    if (isAlreadyOpen) {
-        return; // It's now hidden because of the loop above
-    }
-
-    container.dataset.player = friend.name;
-    container.style.display = 'table-row';
-
-    const getWinnerClass = (v1, v2) => {
-        if (v1 > v2) return 'color: var(--primary); font-weight: 800; text-shadow: 0 0 10px var(--primary-glow);';
-        if (v1 < v2) return 'color: #555;';
-        return 'color: #fff;';
-    };
-
-    const row = (label, v1, v2) => `
-        <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.03);">
-            <div style="flex: 1; text-align: right; ${getWinnerClass(v1, v2)}">${v1}</div>
-            <div style="width: 120px; text-align: center; color: #666; font-size: 10px; text-transform: uppercase; font-weight: 700; letter-spacing: 1px;">${label}</div>
-            <div style="flex: 1; text-align: left; ${getWinnerClass(v2, v1)}">${v2}</div>
-        </div>
-    `;
-
-    container.innerHTML = `
-        <td colspan="13" style="padding: 10px;">
-            <div style="background: linear-gradient(180deg, rgba(20,20,20,0.8), rgba(10,10,10,0.8)); border: 1px solid var(--glass-border); border-radius: 12px; padding: 20px; box-shadow: inset 0 0 20px rgba(0,0,0,0.5);">
-                <!-- Header Names -->
-                <div style="display: flex; justify-content: space-between; margin-bottom: 15px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;">
-                    <div style="flex: 1; text-align: right; font-weight: 700; color: #fff; font-size: 14px;">${me.name}</div>
-                    <div style="width: 120px; text-align: center; color: var(--primary); font-weight: 900; font-style: italic;">VERSUS</div>
-                    <div style="flex: 1; text-align: left; font-weight: 700; color: #fff; font-size: 14px;">${friend.name}</div>
-                </div>
-                
-                <!-- Main Stats -->
-                ${row('Kills', me.kills, friend.kills)}
-                ${row('Dano Causado', me.damage, friend.damage)}
-                ${row('Assistências', me.assists, friend.assists)}
-                ${row('Headshots', me.headshots, friend.headshots)}
-                ${row('Neymar (DBNO)', me.neymar, friend.neymar)}
-                
-                <div style="text-align: center; margin-top: 15px; font-size: 10px; color: #444;">
-                    * O jogador em <span style="color: var(--primary);">dourado</span> teve a melhor performance na categoria
-                </div>
-            </div>
-        </td>
-    `;
+function statsOf(name, h) {
+    return { name, kills: h.kills, damage: h.damage, assists: h.assists, headshots: h.headshots, neymar: h.neymar };
 }
 
-function toggleVersusAll(containerId, me, teammates) {
-    const container = document.getElementById(containerId);
-    if (!container) return;
-
-    const isAlreadyOpen = container.style.display === 'table-row' && container.dataset.player === 'ALL';
-
-    // First, close ALL comparison rows to keep it "unpolluted"
-    document.querySelectorAll('.comparison-row').forEach(row => {
-        row.style.display = 'none';
-        row.dataset.player = '';
+function closeComparePanels() {
+    document.querySelectorAll('.compare-panel').forEach(panel => {
+        panel.hidden = true;
+        panel.dataset.key = '';
     });
+}
 
-    if (isAlreadyOpen) {
-        return; // It's now hidden because of the loop above
-    }
+// Opens the panel for `key`, or closes it if it's already showing that key
+function openComparePanel(rowId, key, html) {
+    const panel = document.getElementById(`cmp-${rowId}`);
+    if (!panel) return;
 
-    container.dataset.player = 'ALL';
-    container.style.display = 'table-row';
+    const wasOpen = !panel.hidden && panel.dataset.key === key;
+    closeComparePanels();
+    if (wasOpen) return;
 
-    const allPlayers = [me, ...teammates];
+    panel.innerHTML = html;
+    panel.dataset.key = key;
+    panel.hidden = false;
+}
 
-    // Header for the table
-    let headerHtml = `<th style="text-align: left; padding: 12px 8px; color: #666; font-size: 10px; width: 150px;">JOGADOR</th>`;
-    headerHtml += `<th style="text-align: center; color: var(--primary); font-size: 10px; width: 80px;">KILLS</th>`;
-    headerHtml += `<th style="text-align: center; color: var(--primary); font-size: 10px; width: 80px;">DANO</th>`;
-    headerHtml += `<th style="text-align: center; color: #888; font-size: 10px; width: 80px;">ASST</th>`;
-    headerHtml += `<th style="text-align: center; color: #888; font-size: 10px; width: 80px;">HS</th>`;
-    headerHtml += `<th style="text-align: center; color: #888; font-size: 10px; width: 80px;">NEYMAR</th>`;
+function toggleVersus(rowId, playerName, matchId, mateName) {
+    const h = getMatch(playerName, matchId);
+    const mate = [...(h?.friendsTeammates || []), ...(h?.randomTeammates || [])].find(t => t.name === mateName);
+    if (!h || !mate) return;
+
+    const me = statsOf(playerName, h);
+    const row = (label, a, b) => `
+        <div class="versus-row">
+            <span class="${a > b ? 'better' : ''}">${a}</span>
+            <span class="label">${label}</span>
+            <span class="${b > a ? 'better' : ''}">${b}</span>
+        </div>`;
+
+    openComparePanel(rowId, `vs:${mateName}`, `
+        <div class="versus-head"><span>${esc(me.name)}</span><span>vs</span><span>${esc(mate.name)}</span></div>
+        ${row('Kills', me.kills, mate.kills)}
+        ${row('Dano', me.damage, mate.damage)}
+        ${row('Assistências', me.assists, mate.assists)}
+        ${row('Headshots', me.headshots, mate.headshots)}
+        ${row('Knocks', me.neymar, mate.neymar)}
+    `);
+}
+
+function toggleVersusAll(rowId, playerName, matchId) {
+    const h = getMatch(playerName, matchId);
+    if (!h) return;
+
+    const allPlayers = [statsOf(playerName, h), ...(h.friendsTeammates || []), ...(h.randomTeammates || [])];
 
     const rowsHtml = allPlayers.map(p => `
-        <tr style="border-bottom: 1px solid rgba(255,255,255,0.03);">
-            <td style="padding: 12px 8px; font-weight: 700; color: ${p.name === me.name ? 'var(--primary)' : '#fff'}; font-size: 12px; text-align: left;">${p.name}</td>
-            <td style="text-align: center; font-weight: 800; font-size: 14px; color: #fff;">${p.kills}</td>
-            <td style="text-align: center; color: #aaa;">${p.damage}</td>
-            <td style="text-align: center; color: #888;">${p.assists}</td>
-            <td style="text-align: center; color: #888;">${p.headshots}</td>
-            <td style="text-align: center; color: #888;">${p.neymar}</td>
-        </tr>
-    `).join('');
+        <tr class="${p.name === playerName ? 'is-me' : ''}">
+            <td>${esc(p.name)}</td>
+            <td>${p.kills}</td>
+            <td>${p.damage}</td>
+            <td>${p.assists}</td>
+            <td>${p.headshots}</td>
+            <td>${p.neymar}</td>
+        </tr>`).join('');
 
-    container.innerHTML = `
-        <td colspan="13" style="padding: 10px;">
-            <div style="background: linear-gradient(180deg, rgba(20,20,20,0.8), rgba(10,10,10,0.8)); border: 1px solid var(--glass-border); border-radius: 12px; padding: 20px; box-shadow: inset 0 0 20px rgba(0,0,0,0.5);">
-                <div style="color: var(--primary); font-weight: 900; font-style: italic; margin-bottom: 15px; text-align: center; font-size: 12px; letter-spacing: 2px;">COMPARATIVO DE EQUIPE (VERSUS ALL)</div>
-                <table style="width: 100%; border-collapse: collapse;">
-                    <thead>
-                        <tr style="border-bottom: 1px solid #333;">${headerHtml}</tr>
-                    </thead>
-                    <tbody>
-                        ${rowsHtml}
-                    </tbody>
-                </table>
-                <div style="text-align: center; margin-top: 15px; font-size: 10px; color: #444;">
-                    * Resumo de performance de todos os membros da Ego Team na partida
-                </div>
-            </div>
-        </td>
-    `;
+    openComparePanel(rowId, 'ALL', `
+        <div class="compare-title">Comparativo do time nesta partida</div>
+        <table class="team-table">
+            <thead>
+                <tr><th>Jogador</th><th>Kills</th><th>Dano</th><th>Assist.</th><th>HS</th><th>Knocks</th></tr>
+            </thead>
+            <tbody>${rowsHtml}</tbody>
+        </table>
+    `);
 }
 
-// Export functions to global scope for HTML event handlers
-window.togglePlayerHistory = togglePlayerHistory;
-window.toggleVersus = toggleVersus;
-window.toggleVersusAll = toggleVersusAll;
-window.loadPlayerData = loadPlayerData;
-window.togglePlayerHistory = togglePlayerHistory;
-window.toggleVersus = toggleVersus;
-window.toggleVersusAll = toggleVersusAll;
-window.loadPlayerData = loadPlayerData;
-window.openMatchTimeline = openMatchTimeline;
-window.closeTimelineModal = closeTimelineModal;
+// ── Match timeline ──
+
+const TL_ICON_PATHS = {
+    crosshair: '<circle cx="12" cy="12" r="7"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/>',
+    skull: '<path d="M12 3a8 8 0 0 0-8 8c0 2.4 1.1 4.3 3 5.5V20h10v-3.5c1.9-1.2 3-3.1 3-5.5a8 8 0 0 0-8-8z"/><path d="M10 20v-2M14 20v-2"/><circle cx="9" cy="11" r="1.3"/><circle cx="15" cy="11" r="1.3"/>',
+    down: '<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>',
+    plus: '<path d="M12 5v14M5 12h14"/>',
+    trophy: '<path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/>'
+};
+
+function tlIcon(name) {
+    return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${TL_ICON_PATHS[name]}</svg>`;
+}
+
+// Each player's timeline only holds events where they are the killer, victim or reviver
+const TIMELINE_TYPES = {
+    kill: { cls: 't-kill', icon: 'crosshair', label: 'Abate', text: e => `Eliminou <strong>${esc(e.victim)}</strong>` },
+    death: { cls: 't-death', icon: 'skull', label: 'Morte', text: e => `Eliminado por <strong>${esc(ID_NAMES[e.killer] || e.killer)}</strong>` },
+    knock: { cls: 't-knock', icon: 'down', label: 'Knock', text: e => `Derrubou <strong>${esc(e.victim)}</strong>` },
+    get_knocked: { cls: 't-knocked', icon: 'down', label: 'Derrubado', text: e => `Derrubado por <strong>${esc(ID_NAMES[e.killer] || e.killer)}</strong>` },
+    revive: { cls: 't-revive', icon: 'plus', label: 'Revive', text: e => `Levantado por <strong>${esc(e.reviver)}</strong>` },
+    revive_other: { cls: 't-revive', icon: 'plus', label: 'Revive', text: e => `Levantou <strong>${esc(e.victim)}</strong>` },
+    victory: { cls: 't-victory', icon: 'trophy', label: 'Vitória', text: () => '<strong>Winner winner chicken dinner!</strong>' }
+};
+
+function timeToSecs(time) {
+    const [m, s] = String(time).split(':').map(Number);
+    return (m || 0) * 60 + (s || 0);
+}
+
+function secsToTime(secs) {
+    return `${Math.floor(secs / 60)}:${String(Math.floor(secs % 60)).padStart(2, '0')}`;
+}
 
 function openMatchTimeline(playerName, matchId) {
-    const stats = currentAggregatedData[playerName];
-    const match = stats?.history.find(h => h.matchId === matchId);
+    const match = getMatch(playerName, matchId);
 
     const modal = document.getElementById('timelineModal');
     const body = document.getElementById('timelineModalBody');
     if (!modal || !body) return;
 
-    if (!match || !match.timeline || match.timeline.length === 0) {
-        body.innerHTML = `<div style="text-align:center; padding: 40px; color: #666; font-style: italic;">Desculpe, telemetria detalhada não disponível para esta partida.</div>`;
-    } else {
-        // Sort events by time
-        const sorted = [...match.timeline].sort((a, b) => {
-            const [mA, sA] = a.time.split(':').map(Number);
-            const [mB, sB] = b.time.split(':').map(Number);
-            return (mA * 60 + sA) - (mB * 60 + sB);
-        });
+    const { date } = formatMatchDate(match?.fullDate);
+    updateText('timelineMeta', match ? `${playerName} · ${modeLabel(match.mode)} · ${date}` : playerName);
 
-        // Add Victory manually
-        if (match.died === 0) {
-            sorted.push({ type: 'victory', time: 'Fim', text: 'VITÓRIA! Sobreviveu até o último círculo.' });
-        }
-
-        body.innerHTML = sorted.map((e, index) => {
-            let icon = '⚪'; let title = ''; let desc = ''; let badge = '';
-
-            switch (e.type) {
-                case 'kill':
-                    icon = '🎯'; title = 'Inimigo Eliminado';
-                    desc = `Eliminou <strong>${e.victim}</strong> usando ${e.weapon}${e.headshot ? ' <span style="color:#ffd700;">(HEADSHOT! 🎯)</span>' : ''}`;
-                    badge = '<span class="timeline-badge badge-kill">Abate</span>';
-                    break;
-                case 'death':
-                    icon = '💀'; title = 'Membro Eliminado';
-                    desc = `<strong>${e.victim}</strong> foi eliminado por <strong>${e.killer}</strong> (${e.weapon})`;
-                    badge = '<span class="timeline-badge badge-death">Morte</span>';
-                    break;
-                case 'knock':
-                    icon = '💥'; title = 'Inimigo Nocauteado';
-                    desc = `<strong>${e.killer}</strong> deixou <strong>${e.victim}</strong> em estado DBNO`;
-                    badge = '<span class="timeline-badge badge-knock">Nocauteou</span>';
-                    break;
-                case 'get_knocked':
-                    icon = '🚑'; title = 'Membro Nocauteado';
-                    desc = `<strong>${e.victim}</strong> foi nocauteado por <strong>${e.killer}</strong>`;
-                    badge = '<span class="timeline-badge badge-knock">Nocauteado</span>';
-                    break;
-                case 'revive':
-                    icon = '💉'; title = 'Revivido (Squad)';
-                    desc = `<strong>${e.victim}</strong> foi trazido de volta por <strong>${e.reviver}</strong>`;
-                    badge = '<span class="timeline-badge badge-revive">Revive</span>';
-                    break;
-                case 'revive_other':
-                    icon = '🤝'; title = 'Auxílio Médico';
-                    desc = `<strong>${e.reviver}</strong> reviveu <strong>${e.victim}</strong>`;
-                    badge = '<span class="timeline-badge badge-revive">Ajuda</span>';
-                    break;
-                case 'victory':
-                    icon = '🏆'; title = 'WINNER WINNER CHICKEN DINNER!';
-                    desc = 'Parabéns! A equipe alcançou o topo da partida.';
-                    badge = '<span class="timeline-badge badge-win">Vitória</span>';
-                    break;
-            }
-
-            return `
-                <div class="timeline-item">
-                    <div class="timeline-item-time">${e.time} MIN</div>
-                    <div class="timeline-item-marker">
-                        <div class="timeline-icon-box" style="border-color: ${e.type.includes('kill') ? '#27ae60' : e.type.includes('knock') ? '#f7b500' : e.type.includes('death') ? '#eb5757' : '#ffd700'}">${icon}</div>
-                        <div class="timeline-line"></div>
-                    </div>
-                    <div class="timeline-card" style="border-left: 3px solid ${e.type.includes('revive') ? '#3b82f6' : 'transparent'};">
-                        ${badge}
-                        <h4>${title}</h4>
-                        <p>${desc}</p>
-                    </div>
-                </div>`;
-        }).join('');
+    if (!match) {
+        body.innerHTML = '<p class="empty tl-empty">Partida não encontrada.</p>';
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+        return;
     }
+
+    const events = [...(match.timeline || [])]
+        .map(e => ({ ...e, secs: timeToSecs(e.time) }))
+        .sort((a, b) => a.secs - b.secs);
+
+    const lastEvent = events.length ? events[events.length - 1].secs : 0;
+    const matchEnd = Math.max(match.matchDuration || 0, match.timeSurvived || 0, lastEvent, 1);
+    const aliveUntil = match.died === 0 ? matchEnd : (match.timeSurvived || lastEvent);
+
+    // ── Resumo ──
+    const summary = `
+        <div class="tl-summary">
+            <div><small>Resultado</small>${match.died === 0
+                ? '<span class="pill-win">Vitória</span>'
+                : `<span class="tl-summary-value">${match.winPlace ? `${match.winPlace}º lugar` : 'Eliminado'}</span>`}</div>
+            <div><small>Kills</small><span class="tl-summary-value mono">${match.kills}</span></div>
+            <div><small>Dano</small><span class="tl-summary-value mono">${formatNumber(match.damage)}</span></div>
+            <div><small>Tempo vivo</small><span class="tl-summary-value mono">${secsToTime(aliveUntil)}</span></div>
+        </div>`;
+
+    // ── Barra da partida: quando cada evento aconteceu ──
+    const pct = secs => Math.min(100, Math.max(0, secs / matchEnd * 100)).toFixed(2);
+    const marks = events.map(e => {
+        const t = TIMELINE_TYPES[e.type];
+        return t ? `<span class="tl-mark ${t.cls}" style="left: ${pct(e.secs)}%" title="${e.time} · ${t.label}"></span>` : '';
+    }).join('');
+
+    const track = `
+        <div class="tl-track">
+            <div class="tl-track-bar">
+                <span class="tl-track-alive" style="width: ${pct(aliveUntil)}%"></span>
+                ${marks}
+            </div>
+            <div class="tl-track-labels"><span>0:00</span><span>Fim da partida · ${secsToTime(matchEnd)}</span></div>
+        </div>`;
+
+    // ── Lista de eventos ──
+    if (match.died === 0) {
+        events.push({ type: 'victory', time: secsToTime(matchEnd), secs: matchEnd });
+    }
+
+    const list = events.length === 0
+        ? '<p class="empty tl-empty">Telemetria detalhada não disponível para esta partida.</p>'
+        : `<ol class="tl-list">${events.map(e => {
+            const t = TIMELINE_TYPES[e.type];
+            if (!t) return '';
+            return `
+                <li class="tl-event ${t.cls}">
+                    <span class="tl-time">${e.time}</span>
+                    <span class="tl-icon">${tlIcon(t.icon)}</span>
+                    <div class="tl-body">
+                        <span class="tl-text">${t.text(e)}</span>
+                        <span class="tl-sub"><span class="tl-label">${t.label}</span>${e.headshot ? '<span class="tl-hs">Headshot</span>' : ''}</span>
+                    </div>
+                    ${e.weapon && e.weapon !== 'Desconhecido' ? `<span class="tl-weapon">${esc(e.weapon)}</span>` : ''}
+                </li>`;
+        }).join('')}</ol>`;
+
+    body.innerHTML = summary + track + list;
 
     modal.classList.add('active');
     document.body.style.overflow = 'hidden'; // Prevent scroll
@@ -1272,14 +1196,16 @@ function openMatchTimeline(playerName, matchId) {
 function closeTimelineModal() {
     const modal = document.getElementById('timelineModal');
     if (modal) modal.classList.remove('active');
-    document.body.style.overflow = 'auto';
+    document.body.style.overflow = '';
 }
 
 // ── Kills Hover Popover ──
 let _killsTimer = null;
 
-function openKillsModal(title, names, type, el) {
+function openKillsModal(playerName, matchId, type, el) {
     clearTimeout(_killsTimer);
+    const h = getMatch(playerName, matchId);
+    const names = type === 'bot' ? h?.botVictims : h?.playerVictims;
     if (!names || names.length === 0) return;
 
     const overlay = document.getElementById('killsModal');
@@ -1289,40 +1215,35 @@ function openKillsModal(title, names, type, el) {
 
     // Position ABOVE the cell by default — arrow points down toward the cell
     const rect = el.getBoundingClientRect();
-    const popW = 210;
-    const estH = Math.min(names.length * 28 + 46, 270);
+    const popW = 220;
+    const estH = Math.min(names.length * 30 + 44, 280);
 
     let left = rect.left + rect.width / 2 - popW / 2;
     left = Math.max(8, Math.min(left, window.innerWidth - popW - 8));
 
     // Arrow should point to center of the cell — compute horizontal offset within bubble
     const cellCenterX = rect.left + rect.width / 2;
-    const arrowOffsetPct = Math.max(16, Math.min(cellCenterX - left, popW - 16));
-    overlay.querySelector('.kills-modal').style.setProperty('--arrow-offset', arrowOffsetPct + 'px');
+    const arrowOffset = Math.max(16, Math.min(cellCenterX - left, popW - 16));
+    overlay.querySelector('.kills-modal').style.setProperty('--arrow-offset', arrowOffset + 'px');
 
     overlay.classList.remove('flipped');
-    let top = rect.top - estH - 14; // Above the cell + gap for arrow
+    let top = rect.top - estH - 12;
     if (top < 8) {
         // Not enough room above → show below (arrow points up)
-        top = rect.bottom + 14;
+        top = rect.bottom + 12;
         overlay.classList.add('flipped');
     }
 
     overlay.style.left = left + 'px';
     overlay.style.top = top + 'px';
 
-    // Title
-    titleEl.textContent = title;
-    titleEl.style.color = type === 'bot' ? '#ef4444' : '#22c55e';
+    titleEl.innerHTML = type === 'bot'
+        ? '<span class="is-bot">Bots abatidos</span>'
+        : '<span class="is-player">Jogadores abatidos</span>';
 
-    // Show victims in chronological order (#1, #2, #3...)
-    const icon = type === 'bot' ? '🤖' : '🎯';
-    bodyEl.innerHTML = names.map((n, i) =>
-        `<div class="kill-entry">
-            <span class="kill-icon">${icon}</span>
-            <span class="kill-count" style="background:transparent; color:#555; font-size:10px; padding:0; min-width:22px; text-align:right;">#${i + 1}</span>
-            <span class="kill-name">${n}</span>
-        </div>`
+    // Show victims in chronological order
+    bodyEl.innerHTML = names.map((victim, i) =>
+        `<div class="kill-entry"><span class="kill-count">${i + 1}</span><span class="kill-name">${esc(victim)}</span></div>`
     ).join('');
 
     overlay.classList.add('active');
@@ -1342,35 +1263,43 @@ function keepKillsModalOpen() {
     clearTimeout(_killsTimer);
 }
 
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeKillsModal(0); });
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+        closeKillsModal(0);
+        closeTimelineModal();
+    }
+});
 
-window.openKillsModal = openKillsModal;
-window.closeKillsModal = closeKillsModal;
-window.keepKillsModalOpen = keepKillsModalOpen;
+// ── Wins do dia ──
 
 function renderWinRegistry(wins) {
     const container = document.getElementById('podiumContainer');
     const highlight = document.getElementById('winCountHighlight');
-    
+    const listSection = document.getElementById('winsListSection');
+    const list = document.getElementById('winsList');
+
     if (!container) return;
 
-    // Update Highlight (Total team wins today)
+    const now = new Date();
+    const todayLabel = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}`;
+
     if (highlight) {
         highlight.innerHTML = `
-            <div class="win-count-icon-bg">🏆</div>
-            <div class="win-count-content">
-                <span class="win-count-number">${wins.length}</span>
-                <span class="win-count-label">${wins.length === 1 ? 'VITÓRIA HOJE' : 'VITÓRIAS HOJE'}</span>
+            <span class="win-hero-number">${wins.length}</span>
+            <div>
+                <h1 class="win-hero-title">${wins.length === 1 ? 'vitória hoje' : 'vitórias hoje'}</h1>
+                <span class="caption">Partidas de hoje em que ${esc(currentSearchedName)} terminou em 1º · ${todayLabel}</span>
             </div>
         `;
     }
 
     if (wins.length === 0) {
-        container.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--text-secondary); font-style: italic;">Nenhuma vitória encontrada hoje.</div>';
+        container.innerHTML = '<p class="empty">Nenhuma vitória encontrada hoje.</p>';
+        if (listSection) listSection.hidden = true;
         return;
     }
 
-    // ── CALCULAR PÓDIO (Rank por performance nas wins) ──
+    // ── Pódio: rank por vitórias, depois kills ──
     const playerStats = {};
     wins.forEach(win => {
         win.players.forEach(p => {
@@ -1382,41 +1311,216 @@ function renderWinRegistry(wins) {
         });
     });
 
-    const ranked = Object.values(playerStats).sort((a, b) => 
-        (b.wins - a.wins) || (b.kills - a.kills)
-    );
+    const ranked = Object.values(playerStats)
+        .sort((a, b) => (b.wins - a.wins) || (b.kills - a.kills))
+        .slice(0, 4);
 
-    // Render Podium
-    const podiumHtml = [3, 1, 0, 2].map(rankIndex => {
-        const p = ranked[rankIndex];
-        if (!p) return ''; // Don't show empty boxes for 4th place if not needed
-
-        const rankMapping = [1, 2, 3, 4];
-        const rank = rankIndex + 1;
-        const avg = (p.kills / p.wins).toFixed(1);
-
-        const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '🎖️';
-
-        return `
-            <div class="podium-box">
-                <div class="podium-avatar avatar-${rank}">
-                    ${medal}
-                </div>
-                <div class="podium-step step-${rank}">
-                    <div class="podium-rank">#${rank}</div>
-                    <div class="podium-player-name">${p.name}</div>
-                    <div class="podium-metrics">
-                        <div class="metric-row"><span>VITÓRIAS</span> <span>${p.wins}</span></div>
-                        <div class="metric-row"><span>TOTAL KILLS</span> <span>${p.kills}</span></div>
-                        <div class="metric-row" style="border:none; color: gold;"><span>MÉDIA KILLS</span> <span>${avg}</span></div>
-                    </div>
-                </div>
+    container.innerHTML = ranked.map((p, i) => `
+        <div class="podium-card${i === 0 ? ' is-first' : ''}">
+            <div class="podium-top">
+                <span class="podium-rank">${i + 1}º lugar</span>
+                ${i === 0 ? TROPHY_SVG : ''}
             </div>
-        `;
+            <span class="podium-name" title="${esc(p.name)}">${esc(p.name)}</span>
+            <div class="podium-metrics">
+                <div><small>Vitórias</small><span class="mono">${p.wins}</span></div>
+                <div><small>Kills</small><span class="mono">${p.kills}</span></div>
+                <div><small>Média</small><span class="mono">${(p.kills / p.wins).toFixed(1).replace('.', ',')}</span></div>
+            </div>
+        </div>
+    `).join('');
+
+    // ── Lista das partidas vencidas ──
+    if (list && listSection) {
+        const pad = n => String(n).padStart(2, '0');
+        list.innerHTML = [...wins]
+            .sort((a, b) => new Date(b.time) - new Date(a.time))
+            .map(w => {
+                const d = new Date(w.time);
+                const players = [...w.players]
+                    .sort((a, b) => b.kills - a.kills)
+                    .map(p => `<span class="win-player">${esc(p.name)}<span class="mono">${p.kills} kills</span></span>`)
+                    .join('');
+                return `
+                    <div class="win-row">
+                        <span class="mono">${pad(d.getHours())}:${pad(d.getMinutes())}</span>
+                        <span class="dim win-mode">${modeLabel(w.mode)}</span>
+                        <span class="win-players">${players}</span>
+                        <button class="btn-ghost" onclick="openMatchTimeline('${arg(currentSearchedName)}', '${arg(w.matchId)}')">Timeline</button>
+                    </div>`;
+            }).join('');
+        listSection.hidden = false;
+    }
+}
+
+// ── Temporada ──
+// Season stats come from /seasons/{id}/gameMode/{mode}/players, which takes up to 10
+// player ids per call. These endpoints count toward the API key's rate limit
+// (10 req/min), so results are cached and only fetched when the tab is opened.
+
+const SEASON_MODES = ['solo', 'solo-fpp', 'duo', 'duo-fpp', 'squad', 'squad-fpp'];
+const SEASON_CACHE_KEY = 'pubgCurrentSeason';
+let seasonCache = { key: '', data: null };
+let seasonLoading = false;
+
+async function apiGet(path) {
+    const res = await fetch(`${BASE_URL}${SHARD}${path}`, {
+        headers: { Authorization: API_KEY, Accept: "application/vnd.api+json" }
+    });
+    if (res.status === 429) throw new Error('RATE_LIMIT');
+    if (!res.ok) throw new Error(`Erro ${res.status} na API do PUBG.`);
+    return res.json();
+}
+
+async function getCurrentSeasonId() {
+    // The season list only changes once a month; keep it for 12h
+    try {
+        const cached = JSON.parse(localStorage.getItem(SEASON_CACHE_KEY) || 'null');
+        if (cached && Date.now() - cached.at < 12 * 3600 * 1000) return cached.id;
+    } catch (e) { /* storage unavailable */ }
+
+    const data = await apiGet('/seasons');
+    const current = (data.data || []).find(s => s.attributes?.isCurrentSeason);
+    if (!current) throw new Error('Temporada atual não encontrada.');
+
+    try {
+        localStorage.setItem(SEASON_CACHE_KEY, JSON.stringify({ id: current.id, at: Date.now() }));
+    } catch (e) { /* storage unavailable */ }
+    return current.id;
+}
+
+function seasonLabel(seasonId) {
+    const num = String(seasonId).match(/-(\d+)$/);
+    return num ? `Temporada ${num[1]}` : 'Temporada atual';
+}
+
+function renderSeasonPlaceholder(message = 'Abra esta aba depois de buscar um jogador.') {
+    const container = document.getElementById('seasonContainer');
+    if (container) container.innerHTML = `<p class="empty pad">${message}</p>`;
+}
+
+async function loadSeasonWins(force = false) {
+    const container = document.getElementById('seasonContainer');
+    if (!container) return;
+
+    if (currentTeamPlayers.length === 0) {
+        renderSeasonPlaceholder('Busque um jogador para ver as vitórias da temporada.');
+        return;
+    }
+
+    const players = currentTeamPlayers.slice(0, 10);
+    const key = players.map(p => p.id).sort().join(',');
+    if (!force && seasonCache.key === key && seasonCache.data) {
+        renderSeasonWins(seasonCache.data);
+        return;
+    }
+    if (seasonLoading) return;
+
+    seasonLoading = true;
+    renderSeasonPlaceholder('Carregando vitórias da temporada...');
+
+    try {
+        const seasonId = await getCurrentSeasonId();
+
+        const stats = {};
+        players.forEach(p => {
+            stats[p.id] = { name: p.name, wins: 0, rounds: 0, top10s: 0, kills: 0, byMode: { squad: 0, duo: 0, solo: 0 } };
+        });
+
+        const ids = players.map(p => p.id).join(',');
+        const results = await Promise.all(SEASON_MODES.map(mode =>
+            apiGet(`/seasons/${seasonId}/gameMode/${mode}/players?filter[playerIds]=${ids}`).then(data => ({ mode, data }))
+        ));
+
+        results.forEach(({ mode, data }) => {
+            (data.data || []).forEach(entry => {
+                const s = stats[entry.relationships?.player?.data?.id];
+                const g = entry.attributes?.gameModeStats?.[mode];
+                if (!s || !g) return;
+                s.wins += g.wins || 0;
+                s.rounds += g.roundsPlayed || 0;
+                s.top10s += g.top10s || 0;
+                s.kills += g.kills || 0;
+                s.byMode[mode.split('-')[0]] += g.wins || 0;
+            });
+        });
+
+        seasonCache = { key, data: { seasonId, players: Object.values(stats) } };
+        renderSeasonWins(seasonCache.data);
+    } catch (err) {
+        console.error(err);
+        const msg = err.message === 'RATE_LIMIT'
+            ? 'A API do PUBG limitou as consultas por agora. Espere cerca de 1 minuto e tente de novo.'
+            : `Não foi possível carregar a temporada. ${esc(err.message)}`;
+        container.innerHTML = `
+            <div class="empty pad season-error">
+                <span>${msg}</span>
+                <button class="btn-ghost" onclick="loadSeasonWins(true)">Tentar de novo</button>
+            </div>`;
+    } finally {
+        seasonLoading = false;
+    }
+}
+
+function renderSeasonWins({ seasonId, players }) {
+    const container = document.getElementById('seasonContainer');
+    const sorted = [...players].sort((a, b) => (b.wins - a.wins) || (b.top10s - a.top10s) || (b.kills - a.kills));
+    const maxWins = Math.max(1, sorted[0]?.wins || 0);
+    const label = seasonLabel(seasonId);
+
+    updateText('seasonLabel', `${label} · partidas normais, todos os modos`);
+
+    const me = players.find(p => p.name.toLowerCase() === currentSearchedName.toLowerCase());
+    updateText('seasonHeroNumber', me ? me.wins : '-');
+    updateText('seasonHeroTitle', me && me.wins === 1 ? 'vitória na temporada' : 'vitórias na temporada');
+    updateText('seasonHeroCaption', me
+        ? `${me.name} · ${label} · ${me.rounds} partidas jogadas`
+        : label);
+
+    const rows = sorted.map((p, i) => {
+        const winRate = p.rounds ? (p.wins / p.rounds * 100).toFixed(1).replace('.', ',') : '0,0';
+        const classes = ['rank-item', i === 0 && p.wins > 0 && 'is-top', me && p.name === me.name && 'is-searched'].filter(Boolean).join(' ');
+        return `
+            <div class="${classes}">
+                <div class="season-grid season-row">
+                    <span class="rank-pos">${i + 1}</span>
+                    <span class="rank-name">${esc(p.name)}</span>
+                    <span class="rank-kills">
+                        <span class="mono">${p.wins}</span>
+                        <span class="bar"><span style="width: ${Math.round(p.wins / maxWins * 100)}%"></span></span>
+                    </span>
+                    <span class="num">${winRate}%</span>
+                    <span class="num dim col-extra">${p.rounds}</span>
+                    <span class="num dim col-extra">${p.top10s}</span>
+                    <span class="num dim col-extra">${formatNumber(p.kills)}</span>
+                    <span class="num dim col-extra">${p.byMode.squad}</span>
+                    <span class="num dim col-extra">${p.byMode.duo}</span>
+                    <span class="num dim col-extra">${p.byMode.solo}</span>
+                </div>
+            </div>`;
     }).join('');
 
-    container.innerHTML = podiumHtml;
+    container.innerHTML = `
+        <div class="season-grid rank-header">
+            <span>#</span><span>Jogador</span><span>Vitórias</span><span class="num">% vitória</span>
+            <span class="num col-extra">Partidas</span><span class="num col-extra">Top 10</span><span class="num col-extra">Kills</span>
+            <span class="num col-extra">Squad</span><span class="num col-extra">Duo</span><span class="num col-extra">Solo</span>
+        </div>
+        ${rows}
+    `;
 }
+
+// Export functions to global scope for HTML event handlers
+window.loadSeasonWins = loadSeasonWins;
+window.loadPlayerData = loadPlayerData;
+window.togglePlayerHistory = togglePlayerHistory;
+window.toggleVersus = toggleVersus;
+window.toggleVersusAll = toggleVersusAll;
+window.openMatchTimeline = openMatchTimeline;
+window.closeTimelineModal = closeTimelineModal;
+window.openKillsModal = openKillsModal;
+window.closeKillsModal = closeKillsModal;
+window.keepKillsModalOpen = keepKillsModalOpen;
 
 // Add scroll-to-top on tab change
 document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -1424,6 +1528,3 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
     });
 });
-
-
-
