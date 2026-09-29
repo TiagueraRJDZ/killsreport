@@ -1171,13 +1171,14 @@ button { font-family: inherit; }
     padding-bottom: 12px;
   }
 
-  .search-box { order: 2; width: 100%; margin-left: 0; }
-  .search-field { flex: 1; width: auto; height: 44px; }
-  .search-field input { font-size: 19px; }
-  .btn-primary { height: 44px; }
+  /* min-width: 0 deixa o campo encolher; sem isso o botão "Buscar" era empurrado para fora da tela */
+  .search-box { order: 2; width: 100%; min-width: 0; margin-left: 0; }
+  .search-field { flex: 1; width: auto; min-width: 0; height: 44px; }
+  .search-field input { font-size: 16px; } /* 16px evita o zoom automático do iOS ao focar */
+  .btn-primary { height: 44px; flex-shrink: 0; }
 
   .tab-navigation { order: 3; width: 100%; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .tab-btn { height: 40px; }
+  .tab-btn { height: 40px; padding: 0 6px; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
   .topbar { position: static; }
 
@@ -1185,18 +1186,21 @@ button { font-family: inherit; }
   .stats-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .podium-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
-  .rank-grid { grid-template-columns: 28px minmax(0, 1fr) 64px 52px 20px; gap: 10px; padding: 0 18px; }
+  /* Só o padding lateral: o vertical vem de .rank-row/.season-row (antes era zerado aqui e as linhas grudavam) */
+  .rank-grid { grid-template-columns: 28px minmax(0, 1fr) 44px 52px 20px; gap: 10px; padding-left: 18px; padding-right: 18px; }
   .rank-grid > .col-extra, .season-grid > .col-extra { display: none; }
-  .season-grid { grid-template-columns: 28px minmax(0, 1fr) 90px 72px; gap: 10px; padding: 0 18px; }
+  .season-grid { grid-template-columns: 28px minmax(0, 1fr) 64px 72px; gap: 10px; padding-left: 18px; padding-right: 18px; }
   .empty.pad { padding: 16px 18px; }
   .rank-kills .bar { display: none; }
-  .rank-player { flex-direction: column; align-items: flex-start; gap: 2px; }
-  .title-pill { padding: 0; background: none !important; }
+  .rank-player { flex-direction: column; align-items: stretch; gap: 2px; }
+  .title-pill { padding: 0; background: none !important; overflow: hidden; text-overflow: ellipsis; }
 
   .card-head { padding: 16px 18px; }
   .history-panel { margin: 0 8px 12px; padding: 12px 14px; }
   .win-row { grid-template-columns: 56px minmax(0, 1fr) auto; padding: 14px 18px; }
   .win-row .win-mode { display: none; }
+  .win-player { max-width: 100%; overflow-wrap: anywhere; }
+  .win-player .mono { white-space: nowrap; } /* "0 kills" não quebra no meio */
 
   .hide-sm, .summary-hint { display: none; }
 }
@@ -1217,8 +1221,51 @@ button { font-family: inherit; }
   .podium-grid { grid-template-columns: 1fr; }
   .win-hero { padding: 20px; gap: 18px; }
   .win-hero-number { font-size: 56px; }
+  .win-hero-title { font-size: 22px; line-height: 1.2; }
+  .win-row { grid-template-columns: 48px minmax(0, 1fr); align-items: start; row-gap: 10px; }
+  .win-row > .btn-ghost { grid-column: 2; justify-self: start; }
   .chart-wrap { height: 180px; }
   .versus-head, .versus-row { grid-template-columns: minmax(0, 1fr) 96px minmax(0, 1fr); }
+  .versus-head > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* Histórico: cada partida vira um cartão em vez da tabela de 1280px com rolagem lateral */
+  .history-table { min-width: 0; }
+  .history-grid.history-header { display: none; }
+  .history-row {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-areas:
+      "date  date  res   res"
+      "kills kills kills mode"
+      ".     .     .     ."
+      "mates mates mates mates"
+      "act   act   act   act";
+    gap: 12px 10px;
+    padding: 14px 0;
+  }
+  .hc-date { grid-area: date; }
+  .hc-result { grid-area: res; justify-self: end; text-align: right; min-width: 0; }
+  .hc-kills { grid-area: kills; flex-wrap: wrap; }
+  .hc-mode { grid-area: mode; }
+  .hc-mates { grid-area: mates; }
+  .hc-actions { grid-area: act; justify-content: flex-start; }
+  .hc-stat { text-align: left; }
+  .killed-by { overflow-wrap: anywhere; }
+  .history-row [data-label]::before {
+    content: attr(data-label);
+    display: block;
+    flex-basis: 100%;
+    margin-bottom: 2px;
+    font-family: var(--font);
+    font-size: 12px;
+    color: var(--text-3);
+  }
+
+  /* Tabela do time: compacta e, se ainda não couber, rola dentro do painel (não na página) */
+  .compare-panel { padding: 12px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .team-table { font-size: 14px; }
+  .team-table th { font-size: 12px; }
+  .team-table th, .team-table td { padding: 8px 3px; white-space: nowrap; }
+  .team-table td:first-child { max-width: 96px; overflow: hidden; text-overflow: ellipsis; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -133,8 +133,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const searchBtn = document.getElementById('searchBtn');
     const playerInput = document.getElementById('playerInput');
 
+    // Nick do PUBG não tem espaço: remove enquanto digita/cola, mantendo o cursor no lugar
+    playerInput.addEventListener('input', () => {
+        const value = playerInput.value;
+        const clean = value.replace(/\s+/g, '');
+        if (clean === value) return;
+        const caret = value.slice(0, playerInput.selectionStart ?? value.length).replace(/\s+/g, '').length;
+        playerInput.value = clean;
+        playerInput.setSelectionRange(caret, caret);
+    });
+
     // Press enter to search
-    playerInput.addEventListener('keypress', (e) => {
+    playerInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') loadPlayerData(playerInput.value);
     });
 
@@ -161,6 +171,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function loadPlayerData(nickname) {
+    nickname = (nickname || '').replace(/\s+/g, '');
     if (!nickname) return;
 
     setLoading(true);
@@ -959,18 +970,19 @@ function renderHistoryRow(playerName, h, rowId) {
 
     const hasTeam = (h.friendsTeammates || []).length + (h.randomTeammates || []).length > 0;
 
+    // Classes hc-* e data-label: no celular a linha vira um cartão com rótulos (ver index.css)
     return `
         <div class="history-grid history-row">
-            <span class="match-date"><span class="mono">${date}</span><small>${ago}</small></span>
-            <span>${result}</span>
-            <span class="kills-cell"><span class="mono">${h.kills}</span>${split}</span>
-            <span class="num dim">${h.headshots}</span>
-            <span class="num dim">${h.damage}</span>
-            <span class="num dim">${h.assists}</span>
-            <span class="num dim">${h.neymar}</span>
-            <span class="dim" title="${esc(h.mode)}">${modeLabel(h.mode)}</span>
-            <span class="mates">${mates}</span>
-            <span class="row-actions">
+            <span class="match-date hc-date"><span class="mono">${date}</span><small>${ago}</small></span>
+            <span class="hc-result">${result}</span>
+            <span class="kills-cell hc-kills" data-label="Kills"><span class="mono">${h.kills}</span>${split}</span>
+            <span class="num dim hc-stat" data-label="HS">${h.headshots}</span>
+            <span class="num dim hc-stat" data-label="Dano">${h.damage}</span>
+            <span class="num dim hc-stat" data-label="Assist.">${h.assists}</span>
+            <span class="num dim hc-stat" data-label="Knocks">${h.neymar}</span>
+            <span class="dim hc-mode" data-label="Modo" title="${esc(h.mode)}">${modeLabel(h.mode)}</span>
+            <span class="mates hc-mates">${mates}</span>
+            <span class="row-actions hc-actions">
                 <button class="btn-ghost" onclick="openMatchTimeline('${n}', '${m}')">Timeline</button>
                 ${hasTeam ? `<button class="btn-ghost" onclick="toggleVersusAll('${rowId}', '${n}', '${m}')">Comparar time</button>` : ''}
             </span>
